@@ -47,6 +47,7 @@ import ohi.andre.consolelauncher.managers.music.Song;
 import ohi.andre.consolelauncher.managers.notifications.NotificationManager;
 import ohi.andre.consolelauncher.managers.notifications.reply.BoundApp;
 import ohi.andre.consolelauncher.managers.notifications.reply.ReplyManager;
+import ohi.andre.consolelauncher.managers.WebhookManager;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsSave;
 import ohi.andre.consolelauncher.managers.xml.options.Apps;
@@ -803,8 +804,25 @@ public class SuggestionsManager {
         String[] split = beforeLastSpace.split(Tuils.SPACE);
         if (split.length < 1 || !split[0].equalsIgnoreCase("webhook")) return;
 
-        String webhookName = split.length > 1 ? split[1] : null;
-        if (webhookName == null || webhookName.startsWith("-")) return;
+        if (split.length == 1) {
+            String[] subs = {"-add", "-rm", "-ls"};
+            for (String s : subs) {
+                if (afterLastSpace == null || afterLastSpace.isEmpty() || s.startsWith(afterLastSpace)) {
+                    suggestions.add(new Suggestion(beforeLastSpace, s, false, Suggestion.TYPE_COMMAND));
+                }
+            }
+
+            List<WebhookManager.Webhook> hooks = info.webhookManager.getWebhooks();
+            for (WebhookManager.Webhook h : hooks) {
+                if (afterLastSpace == null || afterLastSpace.isEmpty() || h.name.startsWith(afterLastSpace)) {
+                    suggestions.add(new Suggestion(beforeLastSpace, h.name, false, Suggestion.TYPE_COMMAND));
+                }
+            }
+            return;
+        }
+
+        String webhookName = split[1];
+        if (webhookName.startsWith("-")) return;
 
         List<String> history = info.historyManager.getHistory(webhookName);
         if (history == null || history.isEmpty()) return;

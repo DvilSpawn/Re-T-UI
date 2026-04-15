@@ -15,6 +15,11 @@ These updates ensure the launcher remains functional, secure, and performant on 
 *   **`theme -preset [name]`**: Rapidly switch between high-quality pre-configured themes.
     *   **Available Presets:** `blue`, `red`, `green`, `pink`, `bw`, `cyberpunk`.
     *   **Smart Suggestions:** Applying a preset automatically colors the suggestion bar and shortcut buttons to match the aesthetic.
+*   **`webhook`**: A scalable Webhook system featuring template-based HTTP POST requests.
+    *   **Substitution:** Supports `%n` parameter substitution (e.g., `%1` for the first argument).
+    *   **History:** Automatically tracks the last 5 unique sets of arguments for each webhook.
+    *   **Suggestions:** Provides history-based autocomplete for `webhook [name]` arguments.
+*   **`post [url] [body]`**: Send raw HTTP POST requests directly from the terminal.
 *   **`bbman`**: The new BusyBox manager for installing and verifying Linux binaries.
 *   **ASCII Art System**: A new header system that displays custom ASCII art on the dashboard. Controlled via `show_ascii`, `ascii_index`, and `ascii_size` in `Ui.xml`.
 

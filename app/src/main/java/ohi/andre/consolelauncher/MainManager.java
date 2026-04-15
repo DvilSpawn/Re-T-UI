@@ -400,9 +400,9 @@ public class MainManager {
     String appFormat;
     int outputColor;
 
-    Pattern pa = Pattern.compile("%a", Pattern.CASE_INSENSITIVE | Pattern.LITERAL);
-    Pattern pp = Pattern.compile("%p", Pattern.CASE_INSENSITIVE | Pattern.LITERAL);
-    Pattern pl = Pattern.compile("%l", Pattern.CASE_INSENSITIVE | Pattern.LITERAL);
+    Pattern pa = Pattern.compile("%a", Pattern.CASE_INSENSITIVE);
+    Pattern pp = Pattern.compile("%p", Pattern.CASE_INSENSITIVE);
+    Pattern pl = Pattern.compile("%l", Pattern.CASE_INSENSITIVE);
 
     public boolean performLaunch(MainPack mainPack, AppsManager.LaunchInfo i, String input) {
         Intent intent = appsManager.getIntent(i);
@@ -550,8 +550,17 @@ public class MainManager {
 
         @Override
         public boolean trigger(MainPack info, String input) {
+            if (input == null || input.isEmpty()) return false;
+            
+            // Check if input exactly matches an app label or component
             AppsManager.LaunchInfo i = appsManager.findLaunchInfoWithLabel(input, AppsManager.SHOWN_APPS);
-            return i != null && performLaunch(info, i, input);
+            if (i != null) {
+                // If it matches exactly, and we have arguments, maybe it's NOT an app launch but a command with same name
+                // But TuiCommandTrigger should have caught it first.
+                // However, some apps have spaces in names. findLaunchInfoWithLabel handles that.
+                return performLaunch(info, i, input);
+            }
+            return false;
         }
     }
 
@@ -559,9 +568,14 @@ public class MainManager {
 
         @Override
         public boolean trigger(final MainPack info, final String input) throws Exception {
+            if (input == null || input.isEmpty()) return false;
 
             final Command command = CommandTuils.parse(input, info);
             if(command == null) return false;
+
+            // If it is a ParamCommand (like webhook) or has arguments, we definitely want to handle it here.
+            // If it's just a command name (no args), it might conflict with an app.
+            // But we already prioritized TuiCommandTrigger in the triggers array.
 
             mainPack.lastCommand = input;
 
