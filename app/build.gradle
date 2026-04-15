@@ -28,8 +28,8 @@ android {
         applicationId "com.dvil.tui_renewed"
         minSdk 21
         targetSdk 36
-        versionCode 302
-        versionName "v6.15.1-updated-v3"
+        versionCode 303
+        versionName "v6.15.1-updated-v4"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -52,8 +52,10 @@ android {
                 signingConfig signingConfigs.release
             }
             firebaseAppDistribution {
+                serviceCredentialsFile = "/Users/mako/Downloads/t-ui-renewed-firebase-adminsdk-fbsvc-3da60ffd6f.json"
                 artifactType = "APK"
                 testers = "mekiranjayan@gmail.com"
+                releaseNotes = "New ASCII art fix - Version v6.15.1-updated-v4"
             }
         }
     }

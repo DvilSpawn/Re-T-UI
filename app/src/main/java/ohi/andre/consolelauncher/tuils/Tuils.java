@@ -1496,20 +1496,28 @@ public class Tuils {
     public static void init(Context context) {
         Log.e("TUI-INIT", "Starting Tuils.init()");
         try {
-            File appExternalRoot = context.getExternalFilesDir(null);
-            if (appExternalRoot == null) {
-                appExternalRoot = context.getFilesDir();
-            }
-
-            File newFolder = new File(appExternalRoot, FORK_FOLDER_NAME);
+            // Priority: Internal Storage Root (Shared)
+            File sharedRoot = Environment.getExternalStorageDirectory();
+            File newFolder = new File(sharedRoot, FORK_FOLDER_NAME);
+            
             Log.e("TUI-INIT", "Target folder: " + newFolder.getAbsolutePath());
 
             if (!newFolder.exists()) {
                 boolean created = newFolder.mkdirs();
-                Log.e("TUI-INIT", "Root folder created: " + created);
+                Log.e("TUI-INIT", "Root folder creation attempt: " + created);
+                
+                // Fallback to private storage if shared root is not accessible
+                if (!created) {
+                    File appExternalRoot = context.getExternalFilesDir(null);
+                    if (appExternalRoot == null) {
+                        appExternalRoot = context.getFilesDir();
+                    }
+                    newFolder = new File(appExternalRoot, FORK_FOLDER_NAME);
+                    newFolder.mkdirs();
+                    Log.e("TUI-INIT", "Fallback to private storage: " + newFolder.getAbsolutePath());
+                }
             }
 
-            File sharedRoot = Environment.getExternalStorageDirectory();
             File legacyForkFolder = new File(sharedRoot, "Re:T-UI");
             File legacyOriginalFolder = new File(sharedRoot, "T-UI");
 
