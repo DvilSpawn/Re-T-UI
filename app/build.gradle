@@ -28,8 +28,8 @@ android {
         applicationId "com.dvil.tui_renewed"
         minSdk 21
         targetSdk 36
-        versionCode 307
-        versionName "v6.15.1-EXPERIMENTAL-v2"
+        versionCode 308
+        versionName "v6.15.1-EXPERIMENTAL-v3"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -55,7 +55,7 @@ android {
                 serviceCredentialsFile = "/Users/mako/Downloads/t-ui-renewed-firebase-adminsdk-fbsvc-3da60ffd6f.json"
                 artifactType = "APK"
                 testers = "mekiranjayan@gmail.com"
-                releaseNotes = "v6.15.1-EXPERIMENTAL-v2: Implemented full Webhook system with template substitution and history-based argument suggestions."
+                releaseNotes = "v6.15.1-EXPERIMENTAL-v3: Implemented full Webhook system with template substitution and history-based argument suggestions."
             }
         }
     }
