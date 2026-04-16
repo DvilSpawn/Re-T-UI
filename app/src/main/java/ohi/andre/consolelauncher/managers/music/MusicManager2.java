@@ -191,10 +191,12 @@ public class MusicManager2 implements MediaController.MediaPlayerControl {
                         if(musicCursor!=null && musicCursor.moveToFirst()){
                             int titleColumn = musicCursor.getColumnIndex(MediaStore.Audio.Media.TITLE);
                             int idColumn = musicCursor.getColumnIndex(MediaStore.Audio.Media._ID);
+                            int artistColumn = musicCursor.getColumnIndex(MediaStore.Audio.Media.ARTIST);
                             do {
                                 long thisId = musicCursor.getLong(idColumn);
                                 String thisTitle = musicCursor.getString(titleColumn);
-                                songs.add(new Song(thisId, thisTitle));
+                                String thisArtist = musicCursor.getString(artistColumn);
+                                songs.add(new Song(thisId, thisTitle, thisArtist));
                             }
                             while (musicCursor.moveToNext());
                         }

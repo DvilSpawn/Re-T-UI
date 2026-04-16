@@ -41,6 +41,13 @@ import android.view.ViewGroup;
 import android.view.ViewTreeObserver;
 import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
+import ohi.andre.consolelauncher.commands.main.MainPack;
+import ohi.andre.consolelauncher.managers.AppsManager;
+import ohi.andre.consolelauncher.managers.music.MusicService;
+import java.util.Collections;
+import java.util.List;
+
+import android.widget.GridView;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageButton;
 import android.widget.ImageView;
@@ -55,12 +62,9 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
-import java.util.Collections;
-import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import ohi.andre.consolelauncher.commands.main.MainPack;
 import ohi.andre.consolelauncher.commands.main.specific.RedirectCommand;
 import ohi.andre.consolelauncher.managers.HTMLExtractManager;
 import ohi.andre.consolelauncher.managers.NotesManager;
@@ -99,6 +103,13 @@ public class UIManager implements OnTouchListener {
     public static String ACTION_WEATHER_DELAY = BuildConfig.APPLICATION_ID + "ui_weather_delay";
     public static String ACTION_WEATHER_MANUAL_UPDATE = BuildConfig.APPLICATION_ID + "ui_weather_update";
 
+    public static final String ACTION_MUSIC_CHANGED = "ohi.andre.consolelauncher.music_changed";
+    public static final String SONG_TITLE = "song_title";
+    public static final String SONG_SINGER = "song_singer";
+    public static final String SONG_DURATION = "song_duration";
+    public static final String SONG_POSITION = "song_position";
+    public static final String MUSIC_PLAYING = "music_playing";
+
     public static String FILE_NAME = "fileName";
     public static String PREFS_NAME = "ui";
 
@@ -120,13 +131,17 @@ public class UIManager implements OnTouchListener {
     private final int STORAGE_DELAY = 60 * 1000;
 
     protected Context mContext;
+    protected MainPack mainPack;
 
     private Handler handler;
 
     private DevicePolicyManager policy;
     private ComponentName component;
-    private boolean swipeDownNotifications;
+    private boolean swipeDownNotifications, swipeUpAppsDrawer;
     private GestureDetectorCompat gestureDetector;
+    private View appsDrawerRoot;
+    private GridView appsGrid;
+    private TextView appsDrawerHeader, appsDrawerFooter;
 
     SharedPreferences preferences;
 
@@ -156,6 +171,32 @@ public class UIManager implements OnTouchListener {
     private int notesMaxLines;
     private NotesManager notesManager;
     private NotesRunnable notesRunnable;
+
+    private final Runnable musicTimeRunnable = new Runnable() {
+        @Override
+        public void run() {
+            View musicWidget = mRootView.findViewById(R.id.music_widget);
+            if (musicWidget != null && musicWidget.getVisibility() == View.VISIBLE) {
+                Intent intent = new Intent(ACTION_MUSIC_CHANGED);
+                if (mainPack != null && mainPack.player != null) {
+                    int index = mainPack.player.getSongIndex();
+                    if (index != -1) {
+                        ohi.andre.consolelauncher.managers.music.Song song = mainPack.player.get(index);
+                        if (song != null) {
+                            intent.putExtra(SONG_TITLE, song.getTitle());
+                            intent.putExtra(SONG_SINGER, song.getSinger());
+                        }
+                    }
+                    intent.putExtra(SONG_DURATION, mainPack.player.getDuration());
+                    intent.putExtra(SONG_POSITION, mainPack.player.getCurrentPosition());
+                    intent.putExtra(MUSIC_PLAYING, mainPack.player.isPlaying());
+                }
+                LocalBroadcastManager.getInstance(mContext).sendBroadcast(intent);
+            }
+            handler.postDelayed(this, 1000);
+        }
+    };
+
     private class NotesRunnable implements Runnable {
 
         int updateTime = 2000;
@@ -202,8 +243,9 @@ public class UIManager implements OnTouchListener {
                     charging = plugged == BatteryManager.BATTERY_PLUGGED_AC || plugged == BatteryManager.BATTERY_PLUGGED_USB;
                 }
 
-                String optionalSeparator = "\\" + XMLPrefsManager.get(Behavior.optional_values_separator);
-                String optional = "%\\(([^" + optionalSeparator + "]*)" + optionalSeparator + "([^)]*)\\)";
+                String sep = XMLPrefsManager.get(Behavior.optional_values_separator);
+                String quotedSep = Pattern.quote(sep);
+                String optional = "%\\(([^" + quotedSep + "]*)" + quotedSep + "([^)]*)\\)";
                 optionalCharging = Pattern.compile(optional, Pattern.CASE_INSENSITIVE);
             }
 
@@ -234,14 +276,19 @@ public class UIManager implements OnTouchListener {
                 for (int i = 0; i < emptyCount; i++) emptyPart.append(symbol);
 
                 android.text.SpannableStringBuilder ssb = new android.text.SpannableStringBuilder();
-                ssb.append(fullPart);
-                ssb.setSpan(new android.text.style.ForegroundColorSpan(fullColor), 0, ssb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                ssb.append("[");
+                if (fullPart.length() > 0) {
+                    int start = ssb.length();
+                    ssb.append(fullPart);
+                    ssb.setSpan(new android.text.style.ForegroundColorSpan(fullColor), start, ssb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
 
-                int startEmpty = ssb.length();
-                ssb.append(emptyPart);
-                ssb.setSpan(new android.text.style.ForegroundColorSpan(emptyColor), startEmpty, ssb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
-
-                ssb.append(" ").append(String.valueOf(percentage)).append("%");
+                if (emptyPart.length() > 0) {
+                    int start = ssb.length();
+                    ssb.append(emptyPart);
+                    ssb.setSpan(new android.text.style.ForegroundColorSpan(emptyColor), start, ssb.length(), android.text.Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+                }
+                ssb.append("] ").append(String.valueOf(percentage)).append("%");
 
                 UIManager.this.updateText(Label.battery, ssb);
                 return;
@@ -540,11 +587,12 @@ public class UIManager implements OnTouchListener {
                 wifiManager = (WifiManager) mContext.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
                 mBluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
 
-                optionalValueSeparator = "\\" + XMLPrefsManager.get(Behavior.optional_values_separator);
+                optionalValueSeparator = XMLPrefsManager.get(Behavior.optional_values_separator);
+                String quotedSep = Pattern.quote(optionalValueSeparator);
 
-                String wifiRegex = "%\\(([^" + optionalValueSeparator + "]*)" + optionalValueSeparator + "([^)]*)\\)";
-                String dataRegex = "%\\[([^" + optionalValueSeparator + "]*)" + optionalValueSeparator + "([^\\]]*)\\]";
-                String bluetoothRegex = "%\\{([^" + optionalValueSeparator + "]*)" + optionalValueSeparator + "([^}]*)\\}";
+                String wifiRegex = "%\\(([^" + quotedSep + "]*)" + quotedSep + "([^)]*)\\)";
+                String dataRegex = "%\\[([^" + quotedSep + "]*)" + quotedSep + "([^\\]]*)\\]";
+                String bluetoothRegex = "%\\{([^" + quotedSep + "]*)" + quotedSep + "([^}]*)\\}";
 
                 optionalWifi = Pattern.compile(wifiRegex, Pattern.CASE_INSENSITIVE);
                 optionalBluetooth = Pattern.compile(bluetoothRegex, Pattern.CASE_INSENSITIVE);
@@ -809,7 +857,11 @@ public class UIManager implements OnTouchListener {
 
     private boolean clearOnLock;
 
+    private final View mRootView;
+
     protected UIManager(final Context context, final ViewGroup rootView, MainPack mainPack, boolean canApplyTheme, CommandExecuter executer) {
+        this.mRootView = rootView;
+        this.mainPack = mainPack;
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_UPDATE_SUGGESTIONS);
@@ -823,6 +875,7 @@ public class UIManager implements OnTouchListener {
         filter.addAction(ACTION_WEATHER_GOT_LOCATION);
         filter.addAction(ACTION_WEATHER_DELAY);
         filter.addAction(ACTION_WEATHER_MANUAL_UPDATE);
+        filter.addAction(ACTION_MUSIC_CHANGED);
 
         receiver = new BroadcastReceiver() {
             @Override
@@ -917,6 +970,56 @@ public class UIManager implements OnTouchListener {
                     }
                     weatherRunnable = new WeatherRunnable();
                     handler.post(weatherRunnable);
+                } else if (action.equals(ACTION_MUSIC_CHANGED)) {
+                    String song = intent.getStringExtra(SONG_TITLE);
+                    String singer = intent.getStringExtra(SONG_SINGER);
+                    int duration = intent.getIntExtra(SONG_DURATION, 0);
+                    int position = intent.getIntExtra(SONG_POSITION, 0);
+                    boolean isPlaying = intent.getBooleanExtra(MUSIC_PLAYING, false);
+
+                    int widgetColor = XMLPrefsManager.getColor(Theme.music_widget_color);
+
+                    if (song != null) {
+                        TextView songTitleView = rootView.findViewById(R.id.music_song_title);
+                        if (songTitleView != null) {
+                            songTitleView.setText("Now Playing: " + song.toUpperCase());
+                            songTitleView.setTextColor(widgetColor);
+                        }
+                    }
+                    if (singer != null) {
+                        TextView singerView = rootView.findViewById(R.id.music_singer);
+                        if (singerView != null) {
+                            singerView.setText("Singer      : " + singer.toUpperCase());
+                            singerView.setTextColor(widgetColor);
+                        }
+                    }
+
+                    TextView timeView = rootView.findViewById(R.id.music_time);
+                    if (timeView != null) {
+                        String time = "Time        : " + Tuils.formatMillis(position) + "/" + Tuils.formatMillis(duration);
+                        timeView.setText(time);
+                        timeView.setTextColor(widgetColor);
+                    }
+
+                    TextView playPauseView = rootView.findViewById(R.id.music_play_pause);
+                    if (playPauseView != null) {
+                        playPauseView.setText(isPlaying ? "STOP" : "START");
+                    }
+
+                    View borderView = rootView.findViewById(R.id.music_widget_border);
+                    if (borderView != null) {
+                        GradientDrawable gd = new GradientDrawable();
+                        gd.setShape(GradientDrawable.RECTANGLE);
+                        // Segmented border: 1.5dp width, 12dp dash, 4dp gap for ASCII look
+                        gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor, Tuils.dpToPx(mContext, 12), Tuils.dpToPx(mContext, 4));
+                        gd.setColor(Color.TRANSPARENT);
+                        borderView.setBackgroundDrawable(gd);
+                    }
+
+                    TextView widgetLabel = rootView.findViewById(R.id.music_widget_label);
+                    if (widgetLabel != null) {
+                        widgetLabel.setTextColor(widgetColor);
+                    }
                 }
             }
         };
@@ -955,8 +1058,9 @@ public class UIManager implements OnTouchListener {
         lockOnDbTap = XMLPrefsManager.getBoolean(Behavior.double_tap_lock);
         doubleTapCmd = XMLPrefsManager.get(Behavior.double_tap_cmd);
         swipeDownNotifications = XMLPrefsManager.getBoolean(Behavior.swipe_down_notifications);
+        swipeUpAppsDrawer = XMLPrefsManager.getBoolean(Behavior.swipe_up_apps_drawer);
 
-        if(!lockOnDbTap && doubleTapCmd == null && !swipeDownNotifications) {
+        if(!lockOnDbTap && doubleTapCmd == null && !swipeDownNotifications && !swipeUpAppsDrawer) {
             policy = null;
             component = null;
             gestureDetector = null;
@@ -994,6 +1098,9 @@ public class UIManager implements OnTouchListener {
                             return true;
                         } catch (Exception e3) {
                         }
+                    } else if (swipeUpAppsDrawer && velocityY < -100 && Math.abs(velocityY) > Math.abs(velocityX)) {
+                        showAppsDrawer();
+                        return true;
                     }
                     return false;
                 }
@@ -1046,6 +1153,38 @@ public class UIManager implements OnTouchListener {
                 }
                 return false;
             });
+        }
+
+        appsDrawerRoot = rootView.findViewById(R.id.apps_drawer_root);
+        appsGrid = rootView.findViewById(R.id.apps_grid);
+        appsDrawerHeader = rootView.findViewById(R.id.apps_drawer_header);
+        appsDrawerFooter = rootView.findViewById(R.id.apps_drawer_footer);
+
+        View dummyAnchor = rootView.findViewById(R.id.apps_drawer_dummy_input_anchor);
+        if (dummyAnchor != null) {
+            rootView.post(() -> {
+                RelativeLayout.LayoutParams lp = (RelativeLayout.LayoutParams) dummyAnchor.getLayoutParams();
+                int height = 0;
+                View inputGroup = rootView.findViewById(R.id.input_group);
+                if (inputGroup != null) height += inputGroup.getHeight();
+
+                View toolsView = rootView.findViewById(R.id.tools_view);
+                if (toolsView != null && toolsView.getVisibility() == View.VISIBLE) {
+                    height += toolsView.getHeight();
+                }
+                View suggestions = rootView.findViewById(R.id.suggestions_container);
+                if (suggestions != null && suggestions.getVisibility() == View.VISIBLE) {
+                    height += suggestions.getHeight();
+                }
+                lp.height = height;
+                lp.removeRule(RelativeLayout.ALIGN_PARENT_TOP);
+                lp.addRule(RelativeLayout.ALIGN_PARENT_BOTTOM);
+                dummyAnchor.setLayoutParams(lp);
+            });
+        }
+
+        if (appsDrawerRoot != null) {
+            appsDrawerRoot.setOnClickListener(v -> hideAppsDrawer());
         }
 
         int[] displayMargins = getListOfIntValues(XMLPrefsManager.get(Ui.display_margin_mm), 4, 0);
@@ -1416,12 +1555,21 @@ public class UIManager implements OnTouchListener {
             }
         }
 
-        final boolean inputBottom = XMLPrefsManager.getBoolean(Ui.input_bottom);
-        int layoutId = inputBottom ? R.layout.input_down_layout : R.layout.input_up_layout;
+        int layoutId = R.layout.input_down_layout;
 
         LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
         View inputOutputView = inflater.inflate(layoutId, null);
-        rootView.addView(inputOutputView);
+        ViewGroup terminalContainer = rootView.findViewById(R.id.terminal_container);
+        if (terminalContainer != null) {
+            terminalContainer.addView(inputOutputView);
+        } else {
+            ViewGroup mainContainer = rootView.findViewById(R.id.main_container);
+            if (mainContainer != null) {
+                mainContainer.addView(inputOutputView);
+            } else {
+                rootView.addView(inputOutputView, 0);
+            }
+        }
 
         terminalView = (TextView) inputOutputView.findViewById(R.id.terminal_view);
         terminalView.setOnTouchListener(this);
@@ -1481,6 +1629,97 @@ public class UIManager implements OnTouchListener {
             applyBgRect(toolbarView, bgRectColors[TOOLBAR_BGCOLOR_INDEX], bgColors[TOOLBAR_BGCOLOR_INDEX], margins[TOOLBAR_MARGINS_INDEX], strokeWidth, cornerRadius);
         }
 
+        if (XMLPrefsManager.getBoolean(Behavior.show_music_widget)) {
+            View musicWidget = inflater.inflate(R.layout.music_widget, rootView.findViewById(R.id.context_container), false);
+            LinearLayout contextContainer = rootView.findViewById(R.id.context_container);
+            if (contextContainer != null) {
+                contextContainer.addView(musicWidget);
+                contextContainer.setVisibility(View.VISIBLE);
+
+                int widgetColor = XMLPrefsManager.getColor(Theme.music_widget_color);
+                int buttonColor = XMLPrefsManager.getColor(Theme.music_widget_button_color);
+
+                View borderView = musicWidget.findViewById(R.id.music_widget_border);
+                if (borderView != null) {
+                    GradientDrawable gd = new GradientDrawable();
+                    gd.setShape(GradientDrawable.RECTANGLE);
+                    // Segmented border: 1.5dp width, 12dp dash, 4dp gap for ASCII look
+                    gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor, Tuils.dpToPx(mContext, 12), Tuils.dpToPx(mContext, 4));
+                    gd.setColor(Color.TRANSPARENT);
+                    borderView.setBackgroundDrawable(gd);
+                }
+
+                TextView widgetLabel = musicWidget.findViewById(R.id.music_widget_label);
+                if (widgetLabel != null) {
+                    widgetLabel.setTextColor(widgetColor);
+                }
+
+                TextView songTitleView = musicWidget.findViewById(R.id.music_song_title);
+                if (songTitleView != null) {
+                    songTitleView.setTextColor(widgetColor);
+                    if (mainPack.player != null && mainPack.player.getSongIndex() != -1) {
+                        ohi.andre.consolelauncher.managers.music.Song current = mainPack.player.get(mainPack.player.getSongIndex());
+                        if (current != null) {
+                            songTitleView.setText("Now Playing: " + current.getTitle().toUpperCase());
+                        }
+                    }
+                }
+
+                TextView singerView = musicWidget.findViewById(R.id.music_singer);
+                if (singerView != null) {
+                    singerView.setTextColor(widgetColor);
+                }
+
+                TextView timeView = musicWidget.findViewById(R.id.music_time);
+                if (timeView != null) {
+                    timeView.setTextColor(widgetColor);
+                }
+
+                TextView prevBtn = musicWidget.findViewById(R.id.music_prev);
+                TextView nextBtn = musicWidget.findViewById(R.id.music_next);
+                TextView playPauseBtn = musicWidget.findViewById(R.id.music_play_pause);
+
+                if (prevBtn != null) {
+                    prevBtn.setTextColor(buttonColor);
+                    GradientDrawable gd = new GradientDrawable();
+                    gd.setShape(GradientDrawable.RECTANGLE);
+                    gd.setStroke((int) Tuils.dpToPx(mContext, 1.2f), buttonColor, Tuils.dpToPx(mContext, 6), Tuils.dpToPx(mContext, 2));
+                    gd.setColor(Color.TRANSPARENT);
+                    prevBtn.setBackgroundDrawable(gd);
+                    prevBtn.setOnClickListener(v -> {
+                        if (mainPack.player != null) mainPack.player.playPrev();
+                    });
+                }
+
+                if (nextBtn != null) {
+                    nextBtn.setTextColor(buttonColor);
+                    GradientDrawable gd = new GradientDrawable();
+                    gd.setShape(GradientDrawable.RECTANGLE);
+                    gd.setStroke((int) Tuils.dpToPx(mContext, 1.2f), buttonColor, Tuils.dpToPx(mContext, 6), Tuils.dpToPx(mContext, 2));
+                    gd.setColor(Color.TRANSPARENT);
+                    nextBtn.setBackgroundDrawable(gd);
+                    nextBtn.setOnClickListener(v -> {
+                        if (mainPack.player != null) mainPack.player.playNext();
+                    });
+                }
+
+                if (playPauseBtn != null) {
+                    playPauseBtn.setTextColor(buttonColor);
+                    GradientDrawable gd = new GradientDrawable();
+                    gd.setShape(GradientDrawable.RECTANGLE);
+                    gd.setStroke((int) Tuils.dpToPx(mContext, 1.2f), buttonColor, Tuils.dpToPx(mContext, 6), Tuils.dpToPx(mContext, 2));
+                    gd.setColor(Color.TRANSPARENT);
+                    playPauseBtn.setBackgroundDrawable(gd);
+                    playPauseBtn.setOnClickListener(v -> {
+                        if (mainPack.player != null) {
+                            mainPack.player.play();
+                            playPauseBtn.setText(mainPack.player.isPlaying() ? "STOP" : "START");
+                        }
+                    });
+                }
+            }
+        }
+
         mTerminalAdapter = new TerminalManager(terminalView, inputView, prefixView, submitView, backView, nextView, deleteView, pasteView, context, mainPack, executer);
 
         if (XMLPrefsManager.getBoolean(Suggestions.show_suggestions)) {
@@ -1510,6 +1749,93 @@ public class UIManager implements OnTouchListener {
         int drawTimes = XMLPrefsManager.getInt(Ui.text_redraw_times);
         if(drawTimes <= 0) drawTimes = 1;
         OutlineTextView.redrawTimes = drawTimes;
+    }
+
+    public boolean isAppsDrawerOpen() {
+        return appsDrawerRoot != null && appsDrawerRoot.getVisibility() == View.VISIBLE;
+    }
+
+    public void hideAppsDrawer() {
+        if (appsDrawerRoot != null) {
+            appsDrawerRoot.setVisibility(View.GONE);
+        }
+    }
+
+    public void showAppsDrawer() {
+        if (appsDrawerRoot == null || appsGrid == null) return;
+
+        closeKeyboard();
+
+        MainPack mainPack = mTerminalAdapter.getMainPack();
+        if (mainPack == null || mainPack.appsManager == null) return;
+
+        List<AppsManager.LaunchInfo> apps = mainPack.appsManager.shownApps();
+        Collections.sort(apps, (a, b) -> a.publicLabel.compareToIgnoreCase(b.publicLabel));
+
+        int drawerColor = XMLPrefsManager.getColor(Theme.apps_drawer_color);
+        appsDrawerHeader.setTextColor(drawerColor);
+        appsDrawerFooter.setTextColor(drawerColor);
+
+        try {
+            GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(mContext.getResources(), R.drawable.apps_drawer_border, null).mutate();
+            gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), drawerColor);
+            appsDrawerRoot.findViewById(R.id.apps_drawer_container).setBackgroundDrawable(gd);
+        } catch (Exception e) {}
+
+        try {
+            GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(mContext.getResources(), R.drawable.apps_drawer_header_border, null).mutate();
+            gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), drawerColor);
+            appsDrawerHeader.setBackgroundDrawable(gd);
+            appsDrawerFooter.setBackgroundDrawable(gd);
+        } catch (Exception e) {}
+
+        appsGrid.setAdapter(new AppsAdapter(mContext, apps, drawerColor));
+        appsGrid.setOnItemClickListener((parent, view, position, id) -> {
+            AppsManager.LaunchInfo app = apps.get(position);
+            Intent intent = mainPack.appsManager.getIntent(app);
+            if (intent != null) {
+                mContext.startActivity(intent);
+            }
+            hideAppsDrawer();
+        });
+
+        appsDrawerHeader.setText("Applications/ [" + apps.size() + "]");
+        appsDrawerFooter.setText("total " + apps.size() + " [~]");
+        appsDrawerRoot.setVisibility(View.VISIBLE);
+    }
+
+    private static class AppsAdapter extends android.widget.BaseAdapter {
+        private final Context context;
+        private final List<AppsManager.LaunchInfo> apps;
+        private final int color;
+
+        public AppsAdapter(Context context, List<AppsManager.LaunchInfo> apps, int color) {
+            this.context = context;
+            this.apps = apps;
+            this.color = color;
+        }
+
+        @Override public int getCount() { return apps.size(); }
+        @Override public Object getItem(int position) { return apps.get(position); }
+        @Override public long getItemId(int position) { return position; }
+
+        @Override
+        public View getView(int position, View convertView, android.view.ViewGroup parent) {
+            TextView tv;
+            if (convertView == null) {
+                tv = new TextView(context);
+                tv.setLayoutParams(new GridView.LayoutParams(GridView.LayoutParams.MATCH_PARENT, GridView.LayoutParams.WRAP_CONTENT));
+                tv.setPadding(8, 8, 8, 8);
+                tv.setTextColor(color);
+                tv.setTextSize(16);
+                tv.setTypeface(android.graphics.Typeface.MONOSPACE);
+            } else {
+                tv = (TextView) convertView;
+                tv.setTextColor(color);
+            }
+            tv.setText(apps.get(position).publicLabel);
+            return tv;
+        }
     }
 
     public static int[] getListOfIntValues(String values, int length, int defaultValue) {
@@ -1663,6 +1989,10 @@ public class UIManager implements OnTouchListener {
     }
 
     public void onBackPressed() {
+        if (isAppsDrawerOpen()) {
+            hideAppsDrawer();
+            return;
+        }
         mTerminalAdapter.onBackPressed();
     }
 
@@ -1672,6 +2002,11 @@ public class UIManager implements OnTouchListener {
 
     public void pause() {
         closeKeyboard();
+        handler.removeCallbacks(musicTimeRunnable);
+    }
+
+    public void resume() {
+        handler.post(musicTimeRunnable);
     }
 
     @Override

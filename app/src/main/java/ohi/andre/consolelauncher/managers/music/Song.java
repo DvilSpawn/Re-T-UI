@@ -11,22 +11,26 @@ import it.andreuzzi.comparestring2.StringableObject;
 public class Song implements StringableObject  {
 
     private long id;
-    private String title, path, lowercaseTitle;
+    private String title, path, lowercaseTitle, singer;
 
-    public Song(long songID, String songTitle) {
+    public Song(long songID, String songTitle, String singer) {
         id = songID;
         title = songTitle;
+        this.singer = singer;
         this.lowercaseTitle = title.toLowerCase();
     }
 
     public Song(File file) {
         String name = file.getName();
         int dot = name.lastIndexOf(".");
-        name = name.substring(0,dot);
+        if (dot != -1) {
+            name = name.substring(0, dot);
+        }
 
         this.title = name;
         this.path = file.getAbsolutePath();
         this.id = -1;
+        this.singer = "Unknown";
     }
 
     public long getID() {
@@ -35,6 +39,10 @@ public class Song implements StringableObject  {
 
     public String getTitle() {
         return title;
+    }
+
+    public String getSinger() {
+        return singer;
     }
 
     public String getPath() {

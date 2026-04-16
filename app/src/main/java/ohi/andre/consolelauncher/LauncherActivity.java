@@ -365,6 +365,7 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
     @Override
     protected void onResume() {
         super.onResume();
+        if (ui != null) ui.resume();
     }
 
     private void fixOrientation() {
@@ -412,6 +413,10 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
     protected void onDestroy() {
         super.onDestroy();
         dispose();
+    }
+
+    public UIManager getUIManager() {
+        return ui;
     }
 
     @Override

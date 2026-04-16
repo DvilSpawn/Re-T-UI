@@ -18,6 +18,7 @@ import android.os.PowerManager;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.RemoteInput;
 
+import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
@@ -32,6 +33,13 @@ import ohi.andre.consolelauncher.tuils.Tuils;
 public class MusicService extends Service implements
         MediaPlayer.OnPreparedListener, MediaPlayer.OnErrorListener,
         MediaPlayer.OnCompletionListener {
+
+    public static final String ACTION_MUSIC_CHANGED = "ohi.andre.consolelauncher.music_changed";
+    public static final String SONG_TITLE = "song_title";
+    public static final String SONG_SINGER = "song_singer";
+    public static final String SONG_DURATION = "song_duration";
+    public static final String SONG_POSITION = "song_position";
+    public static final String MUSIC_PLAYING = "music_playing";
 
     public static final int NOTIFY_ID=100001;
 
@@ -69,6 +77,21 @@ public class MusicService extends Service implements
         return super.onStartCommand(intent, flags, startId);
     }
 
+    private void broadcastMusicState() {
+        Intent intent = new Intent(ACTION_MUSIC_CHANGED);
+        intent.putExtra(SONG_TITLE, songTitle);
+        intent.putExtra(MUSIC_PLAYING, isPng());
+        intent.putExtra(SONG_POSITION, getPosn());
+        intent.putExtra(SONG_DURATION, getDur());
+        
+        if (songs != null && songPosn >= 0 && songPosn < songs.size()) {
+            Song s = songs.get(songPosn);
+            intent.putExtra(SONG_SINGER, s.getSinger());
+        }
+
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+    }
+
     @Override
     public void onPrepared(MediaPlayer mp) {
         if(songTitle == null || songTitle.length() == 0) return;
@@ -81,6 +104,8 @@ public class MusicService extends Service implements
         } else {
             startForeground(NOTIFY_ID, buildNotification(this.getApplicationContext(), songTitle));
         }
+
+        broadcastMusicState();
     }
 
     public void initMusicPlayer(){
@@ -227,6 +252,7 @@ public class MusicService extends Service implements
 
     public void pausePlayer(){
         player.pause();
+        broadcastMusicState();
     }
 
     public void stop() {
@@ -243,6 +269,7 @@ public class MusicService extends Service implements
 
     public void playPlayer() {
         player.start();
+        broadcastMusicState();
     }
 
     public void seek(int posn){

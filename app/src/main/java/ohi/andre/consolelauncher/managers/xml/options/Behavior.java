@@ -1166,6 +1166,7 @@ public enum Behavior implements XMLPrefsSave {
         @Override
         public String type() {
             return XMLPrefsSave.TEXT;
+
         }
 
         @Override
@@ -1310,6 +1311,38 @@ public enum Behavior implements XMLPrefsSave {
         @Override
         public String info() {
             return "If false, Re:T-UI won't show information about the weather in the output field";
+        }
+
+        @Override
+        public String type() {
+            return XMLPrefsSave.BOOLEAN;
+        }
+    },
+    swipe_up_apps_drawer {
+        @Override
+        public String defaultValue() {
+            return "true";
+        }
+
+        @Override
+        public String info() {
+            return "If true, swiping up will open the apps drawer";
+        }
+
+        @Override
+        public String type() {
+            return XMLPrefsSave.BOOLEAN;
+        }
+    },
+    show_music_widget {
+        @Override
+        public String defaultValue() {
+            return "false";
+        }
+
+        @Override
+        public String info() {
+            return "If true, a music player widget will be shown in the context container";
         }
 
         @Override

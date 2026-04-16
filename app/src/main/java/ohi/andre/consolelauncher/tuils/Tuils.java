@@ -1085,17 +1085,16 @@ public class Tuils {
             list.set(count, list.get(count).concat(separator));
     }
 
-    public static String toPlanString(String[] strings, String separator) {
-        if(strings == null) {
-            return Tuils.EMPTYSTRING;
-        }
+    public static String formatMillis(int millis) {
+        int seconds = (millis / 1000) % 60;
+        int minutes = (millis / (1000 * 60)) % 60;
+        int hours = (millis / (1000 * 60 * 60)) % 24;
 
-        String output = Tuils.EMPTYSTRING;
-        for (int count = 0; count < strings.length; count++) {
-            output = output.concat(strings[count]);
-            if (count < strings.length - 1) output = output.concat(separator);
+        if (hours > 0) {
+            return String.format("%d:%02d:%02d", hours, minutes, seconds);
+        } else {
+            return String.format("%d:%02d", minutes, seconds);
         }
-        return output;
     }
 
     public static String toPlanString(String[] strings) {

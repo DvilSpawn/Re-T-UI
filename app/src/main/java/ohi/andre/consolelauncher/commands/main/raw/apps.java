@@ -8,6 +8,7 @@ import android.net.Uri;
 
 import java.io.File;
 
+import ohi.andre.consolelauncher.LauncherActivity;
 import ohi.andre.consolelauncher.R;
 import ohi.andre.consolelauncher.commands.CommandAbstraction;
 import ohi.andre.consolelauncher.commands.ExecutePack;
@@ -30,11 +31,27 @@ public class apps extends ParamCommand {
 
             @Override
             public String exec(ExecutePack pack) {
+                if (LauncherActivity.instance != null) {
+                    LauncherActivity.instance.runOnUiThread(() -> {
+                        if (LauncherActivity.instance.getUIManager() != null) {
+                            LauncherActivity.instance.getUIManager().showAppsDrawer();
+                        }
+                    });
+                    return null;
+                }
                 return ((MainPack) pack).appsManager.printApps(AppsManager.SHOWN_APPS, pack.getString());
             }
 
             @Override
             public String onNotArgEnough(ExecutePack pack, int n) {
+                if (LauncherActivity.instance != null) {
+                    LauncherActivity.instance.runOnUiThread(() -> {
+                        if (LauncherActivity.instance.getUIManager() != null) {
+                            LauncherActivity.instance.getUIManager().showAppsDrawer();
+                        }
+                    });
+                    return null;
+                }
                 return ((MainPack) pack).appsManager.printApps(AppsManager.SHOWN_APPS);
             }
         },

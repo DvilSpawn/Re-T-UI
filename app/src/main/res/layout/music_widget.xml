@@ -1,0 +1,118 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/music_widget"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="16dp"
+    android:background="@android:color/transparent">
+
+    <LinearLayout
+        android:id="@+id/music_widget_border"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:padding="8dp"
+        android:background="@drawable/terminal_border">
+
+        <TextView
+            android:id="@+id/music_widget_label"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Music Player"
+            android:textColor="#FFFFFF"
+            android:textSize="10sp"
+            android:paddingLeft="4dp"
+            android:paddingRight="4dp"
+            android:layout_marginTop="-14dp"
+            android:background="#000000"/>
+
+        <TextView
+            android:id="@+id/music_song_title"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Now Playing: -"
+            android:textColor="#FFFFFF"
+            android:textSize="16sp"
+            android:textStyle="bold"
+            android:layout_marginTop="8dp"/>
+
+        <TextView
+            android:id="@+id/music_singer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Singer      : -"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginTop="4dp"/>
+
+        <TextView
+            android:id="@+id/music_time"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="Time        : 0:00/0:00"
+            android:textColor="#FFFFFF"
+            android:textSize="14sp"
+            android:layout_marginTop="4dp"/>
+
+        <!-- Controls -->
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:layout_marginTop="16dp">
+
+            <TextView
+                android:id="@+id/music_prev"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="&lt; PREV"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:padding="8dp"
+                android:textSize="12sp"
+                android:background="@drawable/terminal_button_border"
+                android:clickable="true"
+                android:focusable="true"/>
+
+            <View
+                android:layout_width="16dp"
+                android:layout_height="match_parent"/>
+
+            <TextView
+                android:id="@+id/music_play_pause"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="STOP"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:padding="8dp"
+                android:textSize="12sp"
+                android:background="@drawable/terminal_button_border"
+                android:clickable="true"
+                android:focusable="true"/>
+
+            <View
+                android:layout_width="16dp"
+                android:layout_height="match_parent"/>
+
+            <TextView
+                android:id="@+id/music_next"
+                android:layout_width="0dp"
+                android:layout_weight="1"
+                android:layout_height="wrap_content"
+                android:text="NEXT &gt;"
+                android:textColor="#FFFFFF"
+                android:gravity="center"
+                android:padding="8dp"
+                android:textSize="12sp"
+                android:background="@drawable/terminal_button_border"
+                android:clickable="true"
+                android:focusable="true"/>
+        </LinearLayout>
+    </LinearLayout>
+
+</LinearLayout>

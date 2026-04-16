@@ -172,22 +172,7 @@ public enum Ui implements XMLPrefsSave {
             return "The input/output font size";
         }
     },
-    input_bottom {
-        @Override
-        public String defaultValue() {
-            return "true";
-        }
 
-        @Override
-        public String type() {
-            return XMLPrefsSave.BOOLEAN;
-        }
-
-        @Override
-        public String info() {
-            return "If false, the input field will be placed on top of the screen";
-        }
-    },
     show_ram {
         @Override
         public String defaultValue() {

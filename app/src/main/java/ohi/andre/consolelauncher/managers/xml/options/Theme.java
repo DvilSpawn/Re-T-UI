@@ -564,6 +564,39 @@ public enum Theme implements XMLPrefsSave {
         public String[] invalidValues() {
             return new String[] {"#ff000000"};
         }
+    },
+    apps_drawer_color {
+        @Override
+        public String defaultValue() {
+            return "#A5D6A7";
+        }
+
+        @Override
+        public String info() {
+            return "The color of the apps drawer";
+        }
+    },
+    music_widget_color {
+        @Override
+        public String defaultValue() {
+            return "#ffffffff";
+        }
+
+        @Override
+        public String info() {
+            return "The color of the music widget border";
+        }
+    },
+    music_widget_button_color {
+        @Override
+        public String defaultValue() {
+            return "#ffffffff";
+        }
+
+        @Override
+        public String info() {
+            return "The color of the music widget buttons border";
+        }
     }
     ;
 

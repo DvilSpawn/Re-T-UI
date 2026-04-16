@@ -82,6 +82,10 @@ public class TerminalManager {
         }
     };
 
+    public MainPack getMainPack() {
+        return mainPack;
+    }
+
     private MainPack mainPack;
 
     private boolean defaultHint = true;

@@ -861,7 +861,7 @@ public class XMLPrefsManager {
 //            new SimpleMutableEntry("useSystemFont", Ui.system_font),
 //            new SimpleMutableEntry("fontSize", Ui.font_size),
 //            new SimpleMutableEntry("ramColor", Theme.ram_color),
-//            new SimpleMutableEntry("inputFieldBottom", Ui.input_bottom),
+
 //            new SimpleMutableEntry("username", Ui.username),
 //            new SimpleMutableEntry("showSubmit", Ui.show_enter_button),
 //            new SimpleMutableEntry("deviceName", Ui.deviceName),

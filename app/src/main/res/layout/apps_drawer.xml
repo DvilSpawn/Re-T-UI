@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/apps_drawer_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#E6000000"
+    android:visibility="gone"
+    android:clickable="true"
+    android:focusable="true">
+
+    <View
+        android:id="@+id/apps_drawer_dummy_input_anchor"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_alignParentBottom="true"
+        android:visibility="invisible" />
+
+    <LinearLayout
+        android:id="@+id/apps_drawer_container"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:layout_above="@id/apps_drawer_dummy_input_anchor"
+        android:orientation="vertical"
+        android:layout_margin="16dp"
+        android:background="@drawable/apps_drawer_border"
+        android:padding="2dp">
+
+        <GridView
+            android:id="@+id/apps_grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:numColumns="2"
+            android:padding="12dp"
+            android:horizontalSpacing="16dp"
+            android:verticalSpacing="8dp"
+            android:stretchMode="columnWidth" />
+
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/apps_drawer_header"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@id/apps_drawer_container"
+        android:layout_alignStart="@id/apps_drawer_container"
+        android:layout_marginTop="-10dp"
+        android:layout_marginStart="24dp"
+        android:background="@drawable/apps_drawer_header_border"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        android:text="Applications/ [s]"
+        android:textColor="#A5D6A7"
+        android:textSize="14sp"
+        android:fontFamily="monospace" />
+
+    <TextView
+        android:id="@+id/apps_drawer_footer"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignBottom="@id/apps_drawer_container"
+        android:layout_alignEnd="@id/apps_drawer_container"
+        android:layout_marginBottom="-10dp"
+        android:layout_marginEnd="24dp"
+        android:background="@drawable/apps_drawer_header_border"
+        android:paddingStart="12dp"
+        android:paddingEnd="12dp"
+        android:paddingTop="2dp"
+        android:paddingBottom="2dp"
+        android:text="total 0 [~]"
+        android:textColor="#A5D6A7"
+        android:textSize="12sp"
+        android:fontFamily="monospace" />
+
+</RelativeLayout>
