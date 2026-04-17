@@ -349,6 +349,22 @@ public enum Ui implements XMLPrefsSave {
             return "If true, your system wallpaper will be used as background";
         }
     },
+    auto_color_pick {
+        @Override
+        public String defaultValue() {
+            return "false";
+        }
+
+        @Override
+        public String type() {
+            return XMLPrefsSave.BOOLEAN;
+        }
+
+        @Override
+        public String info() {
+            return "If true, Re:T-UI will derive runtime theme colors from your wallpaper and override manual theme colors";
+        }
+    },
     fullscreen {
         @Override
         public String defaultValue() {

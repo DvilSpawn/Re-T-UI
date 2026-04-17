@@ -173,6 +173,7 @@ public class XMLPrefsManager {
     static boolean commonsLoaded = false;
     public static void loadCommons(Context context) {
         Tuils.init(context);
+        AutoColorManager.init(context);
 
         if(commonsLoaded) return;
         commonsLoaded = true;
@@ -350,8 +351,9 @@ public class XMLPrefsManager {
     public static int getColor(XMLPrefsSave prefsSave) {
         if(prefsSave.parent() == null) return Integer.MAX_VALUE;
 
+        int color;
         try {
-            return (int) transform(prefsSave.parent().getValues().get(prefsSave).value, Color.class);
+            color = (int) transform(prefsSave.parent().getValues().get(prefsSave).value, Color.class);
         } catch (Exception e) {
             String def = prefsSave.defaultValue();
             if(def == null || def.length() == 0) {
@@ -359,11 +361,13 @@ public class XMLPrefsManager {
             }
 
             try {
-                return (int) transform(def, Color.class);
+                color = (int) transform(def, Color.class);
             } catch (Exception e1) {
                 return Integer.MAX_VALUE;
             }
         }
+
+        return AutoColorManager.getColor(prefsSave, color);
     }
 
     public static String getString(XMLPrefsSave prefsSave) {

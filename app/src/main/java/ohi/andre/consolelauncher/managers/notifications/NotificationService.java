@@ -8,6 +8,7 @@ import android.annotation.TargetApi;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.media.MediaMetadata;
 import android.media.session.MediaController;
@@ -31,6 +32,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Queue;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Matcher;
@@ -170,18 +173,49 @@ public class NotificationService extends NotificationListenerService {
     }
 
     private MediaController resolveActiveController() {
-        MediaController activeController = null;
-        for (MediaController controller : activeControllers) {
-            PlaybackState state = controller.getPlaybackState();
-            if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
-                activeController = controller;
-                break;
+        if (activeControllers.isEmpty()) {
+            return null;
+        }
+
+        List<MediaController> rankedControllers = new ArrayList<>(activeControllers);
+        final String preferredPackage = XMLPrefsManager.get(Behavior.preferred_music_app);
+
+        Collections.sort(rankedControllers, new Comparator<MediaController>() {
+            @Override
+            public int compare(MediaController left, MediaController right) {
+                return controllerRank(right, preferredPackage) - controllerRank(left, preferredPackage);
+            }
+        });
+
+        return rankedControllers.get(0);
+    }
+
+    private int controllerRank(MediaController controller, String preferredPackage) {
+        int rank = 0;
+
+        String packageName = controller != null && controller.getPackageName() != null
+                ? controller.getPackageName()
+                : Tuils.EMPTYSTRING;
+
+        if (!TextUtils.isEmpty(preferredPackage) && preferredPackage.equals(packageName)) {
+            rank += 100;
+        }
+
+        PlaybackState state = controller != null ? controller.getPlaybackState() : null;
+        if (state != null && state.getState() == PlaybackState.STATE_PLAYING) {
+            rank += 10;
+        }
+
+        MediaMetadata metadata = controller != null ? controller.getMetadata() : null;
+        if (metadata != null) {
+            String title = metadata.getString(MediaMetadata.METADATA_KEY_TITLE);
+            String artist = metadata.getString(MediaMetadata.METADATA_KEY_ARTIST);
+            if (!TextUtils.isEmpty(title) || !TextUtils.isEmpty(artist)) {
+                rank += 1;
             }
         }
-        if (activeController == null && !activeControllers.isEmpty()) {
-            activeController = activeControllers.get(0);
-        }
-        return activeController;
+
+        return rank;
     }
 
     private void rememberMediaState(String title, String artist, int duration, int position) {
