@@ -520,6 +520,25 @@ public class TerminalManager {
         return mInputView;
     }
 
+    public void refreshTypeface() {
+        android.graphics.Typeface typeface = Tuils.getTypeface(mContext);
+        if (typeface == null) {
+            return;
+        }
+
+        if (mPrefix != null) {
+            mPrefix.setTypeface(typeface);
+        }
+
+        if (mTerminalView != null) {
+            mTerminalView.setTypeface(typeface);
+        }
+
+        if (mInputView != null) {
+            mInputView.setTypeface(typeface);
+        }
+    }
+
     public void clear() {
         mTerminalView.post(() -> mTerminalView.setText(Tuils.EMPTYSTRING));
         cmdList.clear();

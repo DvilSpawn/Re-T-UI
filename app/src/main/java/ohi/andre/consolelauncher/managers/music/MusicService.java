@@ -230,11 +230,12 @@ public class MusicService extends Service implements
                     .setLabel(label)
                     .build();
 
-            Intent i = new Intent(PublicIOReceiver.ACTION_CMD);
+            Intent i = new Intent(context, PublicIOReceiver.class);
+            i.setAction(PublicIOReceiver.ACTION_CMD);
             i.putExtra(MainManager.MUSIC_SERVICE, true);
 
             NotificationCompat.Action action = new NotificationCompat.Action.Builder(R.mipmap.ic_launcher, label,
-                    PendingIntent.getBroadcast(context.getApplicationContext(), 10, i, Tuils.pendingIntentFlags(PendingIntent.FLAG_UPDATE_CURRENT)))
+                    PendingIntent.getBroadcast(context.getApplicationContext(), 10, i, remoteInputPendingIntentFlags(PendingIntent.FLAG_UPDATE_CURRENT)))
                     .addRemoteInput(remoteInput)
                     .build();
 
@@ -245,6 +246,13 @@ public class MusicService extends Service implements
         else not = builder.getNotification();
 
         return not;
+    }
+
+    private static int remoteInputPendingIntentFlags(int flags) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return flags | PendingIntent.FLAG_MUTABLE;
+        }
+        return flags;
     }
 
     public int getPosn(){

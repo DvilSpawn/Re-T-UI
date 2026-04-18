@@ -133,6 +133,10 @@
             </intent-filter>
         </receiver>
 
+        <receiver
+            android:name=".tuils.PublicIOReceiver"
+            android:exported="false" />
+
         <service
             android:name=".managers.notifications.KeeperService"
             android:enabled="true"

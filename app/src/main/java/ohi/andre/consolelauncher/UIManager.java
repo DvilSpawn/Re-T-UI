@@ -3,6 +3,7 @@ package ohi.andre.consolelauncher;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.KeyguardManager;
+import android.app.PendingIntent;
 import android.app.admin.DevicePolicyManager;
 import android.bluetooth.BluetoothAdapter;
 import android.content.BroadcastReceiver;
@@ -57,6 +58,7 @@ import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ListView;
 import android.widget.RelativeLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.AbsListView;
 
@@ -76,10 +78,12 @@ import ohi.andre.consolelauncher.managers.NotesManager;
 import ohi.andre.consolelauncher.managers.TerminalManager;
 import ohi.andre.consolelauncher.managers.TimeManager;
 import ohi.andre.consolelauncher.managers.TuiLocationManager;
+import ohi.andre.consolelauncher.managers.notifications.NotificationService;
 import ohi.andre.consolelauncher.managers.suggestions.SuggestionTextWatcher;
 import ohi.andre.consolelauncher.managers.suggestions.SuggestionsManager;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.options.Behavior;
+import ohi.andre.consolelauncher.managers.xml.options.Notifications;
 import ohi.andre.consolelauncher.managers.xml.options.Suggestions;
 import ohi.andre.consolelauncher.managers.xml.options.Theme;
 import ohi.andre.consolelauncher.managers.xml.options.Toolbar;
@@ -115,6 +119,9 @@ public class UIManager implements OnTouchListener {
     public static final String SONG_DURATION = MusicService.SONG_DURATION;
     public static final String SONG_POSITION = MusicService.SONG_POSITION;
     public static final String MUSIC_PLAYING = MusicService.MUSIC_PLAYING;
+    public static final String ACTION_NOTIFICATION_FEED = NotificationService.ACTION_NOTIFICATION_FEED;
+    public static final String EXTRA_NOTIFICATION_LIST = NotificationService.EXTRA_NOTIFICATION_LIST;
+    public static final String ACTION_REQUEST_NOTIFICATION_FEED = NotificationService.ACTION_REQUEST_NOTIFICATION_FEED;
 
     public static String FILE_NAME = "fileName";
     public static String PREFS_NAME = "ui";
@@ -154,6 +161,7 @@ public class UIManager implements OnTouchListener {
     private final List<AppDrawerEntry> appsDrawerEntries = new ArrayList<>();
     private final LinkedHashMap<String, Integer> appsDrawerAlphaPositions = new LinkedHashMap<>();
     private final LinkedHashMap<String, TextView> appsDrawerAlphaViews = new LinkedHashMap<>();
+    private final ArrayList<NotificationService.Notification> currentOverlayNotifications = new ArrayList<>();
     private String selectedAppsDrawerGroup = null;
     private String selectedAppsDrawerAlpha = null;
 
@@ -889,6 +897,7 @@ public class UIManager implements OnTouchListener {
         filter.addAction(ACTION_WEATHER_DELAY);
         filter.addAction(ACTION_WEATHER_MANUAL_UPDATE);
         filter.addAction(ACTION_MUSIC_CHANGED);
+        filter.addAction(ACTION_NOTIFICATION_FEED);
 
         receiver = new BroadcastReceiver() {
             @Override
@@ -990,13 +999,10 @@ public class UIManager implements OnTouchListener {
                     boolean showMusicWidget = isPlaying && song != null && !song.isEmpty();
 
                     View musicWidget = rootView.findViewById(R.id.music_widget);
-                    LinearLayout contextContainer = rootView.findViewById(R.id.context_container);
                     if (musicWidget != null) {
                         musicWidget.setVisibility(showMusicWidget ? View.VISIBLE : View.GONE);
                     }
-                    if (contextContainer != null) {
-                        contextContainer.setVisibility(showMusicWidget ? View.VISIBLE : View.GONE);
-                    }
+                    updateContextContainerVisibility(rootView);
 
                     int widgetColor = XMLPrefsManager.getColor(Theme.music_widget_color);
                     int widgetBgColor = XMLPrefsManager.getColor(Theme.window_terminal_bg);
@@ -1054,11 +1060,17 @@ public class UIManager implements OnTouchListener {
                             }
                         } catch (Exception ignored) {}
                     }
+                } else if (action.equals(ACTION_NOTIFICATION_FEED)) {
+                    ArrayList<NotificationService.Notification> notifications = intent.getParcelableArrayListExtra(EXTRA_NOTIFICATION_LIST);
+                    updateNotificationWidget(rootView, notifications);
                 }
             }
         };
 
         LocalBroadcastManager.getInstance(context.getApplicationContext()).registerReceiver(receiver, filter);
+        if (XMLPrefsManager.getBoolean(Notifications.show_notifications) || XMLPrefsManager.get(Notifications.show_notifications).equalsIgnoreCase("enabled")) {
+            LocalBroadcastManager.getInstance(context.getApplicationContext()).sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED));
+        }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.getApplicationContext().registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
         } else {
@@ -1674,53 +1686,15 @@ public class UIManager implements OnTouchListener {
 
         if (XMLPrefsManager.getBoolean(Behavior.show_music_widget)) {
             View musicWidget = inflater.inflate(R.layout.music_widget, rootView.findViewById(R.id.context_container), false);
-            int widgetColor = XMLPrefsManager.getColor(Theme.music_widget_color);
-            int widgetBgColor = XMLPrefsManager.getColor(Theme.window_terminal_bg);
-
             LinearLayout contextContainer = rootView.findViewById(R.id.context_container);
             if (contextContainer != null) {
                 contextContainer.addView(musicWidget);
                 contextContainer.setVisibility(View.GONE);
-
-                View borderView = musicWidget.findViewById(R.id.music_widget_border);
-                if (borderView != null) {
-                    GradientDrawable gd = new GradientDrawable();
-                    gd.setShape(GradientDrawable.RECTANGLE);
-                    // Segmented border: 1.5dp width, custom dash/gap for ASCII look
-                    if (useDashed) {
-                        gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor,
-                                Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_dash_length)),
-                                Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_gap_length)));
-                    } else {
-                        gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor);
-                    }
-                    gd.setColor(widgetBgColor);
-                    borderView.setBackgroundDrawable(gd);
-                }
-
-                TextView widgetLabel = musicWidget.findViewById(R.id.music_widget_label);
-                if (widgetLabel != null) {
-                    widgetLabel.setTextColor(widgetColor);
-                    try {
-                        GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(
-                                mContext.getResources(), R.drawable.apps_drawer_header_border, null).mutate();
-                        if (gd != null) {
-                            if (useDashed) {
-                                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor,
-                                        Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_dash_length)),
-                                        Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_gap_length)));
-                            } else {
-                                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor);
-                            }
-                            gd.setColor(widgetBgColor);
-                            widgetLabel.setBackgroundDrawable(gd);
-                        }
-                    } catch (Exception ignored) {}
-                }
+                styleMusicWidget(musicWidget);
 
                 TextView songTitleView = musicWidget.findViewById(R.id.music_song_title);
                 if (songTitleView != null) {
-                    songTitleView.setTextColor(widgetColor);
+                    songTitleView.setTextColor(XMLPrefsManager.getColor(Theme.music_widget_color));
                     if (mainPack.player != null && mainPack.player.getSongIndex() != -1) {
                         ohi.andre.consolelauncher.managers.music.Song current = mainPack.player.get(mainPack.player.getSongIndex());
                         if (current != null) {
@@ -1731,14 +1705,23 @@ public class UIManager implements OnTouchListener {
 
                 TextView singerView = musicWidget.findViewById(R.id.music_singer);
                 if (singerView != null) {
-                    singerView.setTextColor(widgetColor);
+                    singerView.setTextColor(XMLPrefsManager.getColor(Theme.music_widget_color));
                 }
 
                 MusicVisualizerView visualizerView = musicWidget.findViewById(R.id.music_visualizer);
                 if (visualizerView != null) {
-                    visualizerView.setBarColor(widgetColor);
+                    visualizerView.setBarColor(XMLPrefsManager.getColor(Theme.music_widget_color));
                     visualizerView.setPlaying(false);
                 }
+            }
+        }
+
+        if (XMLPrefsManager.getBoolean(Notifications.show_notifications) || XMLPrefsManager.get(Notifications.show_notifications).equalsIgnoreCase("enabled")) {
+            LinearLayout contextContainer = rootView.findViewById(R.id.context_container);
+            if (contextContainer != null) {
+                View notificationWidget = inflater.inflate(R.layout.notification_widget, contextContainer, false);
+                contextContainer.addView(notificationWidget);
+                styleNotificationWidget(notificationWidget);
             }
         }
 
@@ -1771,6 +1754,194 @@ public class UIManager implements OnTouchListener {
         int drawTimes = XMLPrefsManager.getInt(Ui.text_redraw_times);
         if(drawTimes <= 0) drawTimes = 1;
         OutlineTextView.redrawTimes = drawTimes;
+
+        refreshLauncherTypeface();
+    }
+
+    private void styleMusicWidget(View musicWidget) {
+        if (musicWidget == null) {
+            return;
+        }
+
+        int widgetColor = XMLPrefsManager.getColor(Theme.music_widget_color);
+        int widgetBgColor = XMLPrefsManager.getColor(Theme.window_terminal_bg);
+        boolean useDashed = XMLPrefsManager.getBoolean(Ui.enable_dashed_border);
+
+        View borderView = musicWidget.findViewById(R.id.music_widget_border);
+        if (borderView != null) {
+            GradientDrawable gd = new GradientDrawable();
+            gd.setShape(GradientDrawable.RECTANGLE);
+            if (useDashed) {
+                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor,
+                        Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_dash_length)),
+                        Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_gap_length)));
+            } else {
+                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor);
+            }
+            gd.setColor(widgetBgColor);
+            borderView.setBackgroundDrawable(gd);
+        }
+
+        TextView widgetLabel = musicWidget.findViewById(R.id.music_widget_label);
+        if (widgetLabel != null) {
+            widgetLabel.setTextColor(widgetColor);
+            widgetLabel.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+            try {
+                GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(
+                        mContext.getResources(), R.drawable.apps_drawer_header_border, null).mutate();
+                if (gd != null) {
+                    if (useDashed) {
+                        gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor,
+                                Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_dash_length)),
+                                Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_gap_length)));
+                    } else {
+                        gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor);
+                    }
+                    gd.setColor(widgetBgColor);
+                    widgetLabel.setBackgroundDrawable(gd);
+                }
+            } catch (Exception ignored) {}
+        }
+    }
+
+    private void styleNotificationWidget(View notificationWidget) {
+        if (notificationWidget == null) {
+            return;
+        }
+
+        int widgetColor = XMLPrefsManager.getColor(Notifications.default_notification_color);
+        int widgetBgColor = XMLPrefsManager.getColor(Theme.window_terminal_bg);
+        boolean useDashed = XMLPrefsManager.getBoolean(Ui.enable_dashed_border);
+
+        View borderView = notificationWidget.findViewById(R.id.notification_widget_border);
+        if (borderView != null) {
+            GradientDrawable gd = new GradientDrawable();
+            gd.setShape(GradientDrawable.RECTANGLE);
+            if (useDashed) {
+                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor,
+                        Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_dash_length)),
+                        Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_gap_length)));
+            } else {
+                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor);
+            }
+            gd.setColor(widgetBgColor);
+            borderView.setBackgroundDrawable(gd);
+        }
+
+        TextView widgetLabel = notificationWidget.findViewById(R.id.notification_widget_label);
+        if (widgetLabel != null) {
+            widgetLabel.setTextColor(widgetColor);
+            widgetLabel.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+            try {
+                GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(
+                        mContext.getResources(), R.drawable.apps_drawer_header_border, null).mutate();
+                if (gd != null) {
+                    if (useDashed) {
+                        gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor,
+                                Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_dash_length)),
+                                Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_gap_length)));
+                    } else {
+                        gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), widgetColor);
+                    }
+                    gd.setColor(widgetBgColor);
+                    widgetLabel.setBackgroundDrawable(gd);
+                }
+            } catch (Exception ignored) {}
+        }
+
+        renderNotificationRows(notificationWidget);
+    }
+
+    private void updateNotificationWidget(View rootView, List<NotificationService.Notification> notifications) {
+        currentOverlayNotifications.clear();
+        if (notifications != null) {
+            currentOverlayNotifications.addAll(notifications);
+        }
+
+        View notificationWidget = rootView.findViewById(R.id.notification_widget);
+        if (notificationWidget != null) {
+            notificationWidget.setVisibility(currentOverlayNotifications.isEmpty() ? View.GONE : View.VISIBLE);
+            renderNotificationRows(notificationWidget);
+        }
+        updateContextContainerVisibility(rootView);
+    }
+
+    private void renderNotificationRows(View notificationWidget) {
+        LinearLayout rows = notificationWidget.findViewById(R.id.notification_rows);
+        ScrollView scrollView = notificationWidget.findViewById(R.id.notification_scroll);
+        if (rows == null) {
+            return;
+        }
+
+        rows.removeAllViews();
+        int widgetColor = XMLPrefsManager.getColor(Notifications.default_notification_color);
+        int widgetBgColor = XMLPrefsManager.getColor(Theme.window_terminal_bg);
+        int rowBackground = ColorUtils.blendARGB(widgetBgColor, Color.BLACK, 0.18f);
+
+        for (NotificationService.Notification notification : currentOverlayNotifications) {
+            TextView row = new TextView(mContext);
+            LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            lp.bottomMargin = (int) Tuils.dpToPx(mContext, 6);
+            row.setLayoutParams(lp);
+            row.setTypeface(Tuils.getTypeface(mContext));
+            row.setTextSize(12);
+            row.setSingleLine(true);
+            row.setEllipsize(TextUtils.TruncateAt.END);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding((int) Tuils.dpToPx(mContext, 10), (int) Tuils.dpToPx(mContext, 8), (int) Tuils.dpToPx(mContext, 10), (int) Tuils.dpToPx(mContext, 8));
+            row.setTextColor(widgetColor);
+            row.setText(buildNotificationLine(notification));
+
+            GradientDrawable bg = new GradientDrawable();
+            bg.setShape(GradientDrawable.RECTANGLE);
+            bg.setCornerRadius(Tuils.dpToPx(mContext, 2));
+            bg.setColor(rowBackground);
+            bg.setStroke((int) Tuils.dpToPx(mContext, 1f), ColorUtils.setAlphaComponent(widgetColor, 180));
+            row.setBackgroundDrawable(bg);
+
+            if (notification.pendingIntent != null) {
+                row.setClickable(true);
+                row.setFocusable(true);
+                row.setOnClickListener(v -> {
+                    try {
+                        notification.pendingIntent.send();
+                    } catch (PendingIntent.CanceledException e) {
+                        Tuils.sendOutput(Color.RED, mContext, e.toString());
+                    }
+                });
+            }
+
+            rows.addView(row);
+        }
+
+        if (scrollView != null) {
+            scrollView.post(() -> scrollView.fullScroll(View.FOCUS_UP));
+        }
+    }
+
+    private CharSequence buildNotificationLine(NotificationService.Notification notification) {
+        String appName = notification.appName;
+        if (TextUtils.isEmpty(appName)) {
+            appName = notification.pkg;
+        }
+        String preview = notification.preview;
+        if (TextUtils.isEmpty(preview)) {
+            preview = notification.text;
+        }
+        return (appName != null ? appName : "Notification") + "  " + (preview != null ? preview : Tuils.EMPTYSTRING);
+    }
+
+    private void updateContextContainerVisibility(View rootView) {
+        LinearLayout contextContainer = rootView.findViewById(R.id.context_container);
+        if (contextContainer == null) {
+            return;
+        }
+
+        View musicWidget = rootView.findViewById(R.id.music_widget);
+        View notificationWidget = rootView.findViewById(R.id.notification_widget);
+        boolean showMusicWidget = musicWidget != null && musicWidget.getVisibility() == View.VISIBLE;
+        boolean showNotificationWidget = notificationWidget != null && notificationWidget.getVisibility() == View.VISIBLE;
+        contextContainer.setVisibility(showMusicWidget || showNotificationWidget ? View.VISIBLE : View.GONE);
     }
 
     public boolean isAppsDrawerOpen() {
@@ -1796,6 +1967,8 @@ public class UIManager implements OnTouchListener {
 
         appsDrawerHeader.setTextColor(drawerColor);
         appsDrawerFooter.setTextColor(drawerColor);
+        appsDrawerHeader.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+        appsDrawerFooter.setTypeface(Tuils.getTypeface(mContext));
         appsDrawerHeader.setBackgroundColor(widgetBgColor);
         appsDrawerFooter.setBackgroundColor(widgetBgColor);
 
@@ -1891,7 +2064,7 @@ public class UIManager implements OnTouchListener {
         tab.setMaxLines(1);
         tab.setEllipsize(TextUtils.TruncateAt.END);
         tab.setTextSize(9);
-        tab.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+        tab.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
         tab.setMinHeight((int) Tuils.dpToPx(mContext, 40));
 
         boolean selected = (isAll && selectedAppsDrawerGroup == null) || (groupName != null && groupName.equals(selectedAppsDrawerGroup));
@@ -2012,7 +2185,7 @@ public class UIManager implements OnTouchListener {
             tab.setMinimumHeight(0);
             tab.setPadding(0, 0, 0, 0);
             tab.setText(entry.getKey());
-            tab.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+            tab.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
             tab.setTextSize(9.5f);
             styleAlphaTab(tab, entry.getKey(), drawerColor, widgetBgColor);
             tab.setOnClickListener(v -> {
@@ -2134,7 +2307,7 @@ public class UIManager implements OnTouchListener {
                 tv.setPadding(0, (int) Tuils.dpToPx(context, 8), 0, (int) Tuils.dpToPx(context, 6));
                 tv.setTextColor(color);
                 tv.setTextSize(12);
-                tv.setTypeface(Typeface.MONOSPACE, Typeface.BOLD);
+                tv.setTypeface(Tuils.getTypeface(context), Typeface.BOLD);
                 tv.setBackgroundColor(Color.TRANSPARENT);
                 tv.setText("[" + ((SectionEntry) entry).title + "]");
                 return tv;
@@ -2144,7 +2317,7 @@ public class UIManager implements OnTouchListener {
             tv.setPadding((int) Tuils.dpToPx(context, 6), (int) Tuils.dpToPx(context, 12), (int) Tuils.dpToPx(context, 6), (int) Tuils.dpToPx(context, 12));
             tv.setTextColor(color);
             tv.setTextSize(16);
-            tv.setTypeface(Typeface.MONOSPACE);
+            tv.setTypeface(Tuils.getTypeface(context));
             tv.setBackgroundColor(Color.TRANSPARENT);
             tv.setText(app.publicLabel);
             return tv;
@@ -2335,6 +2508,41 @@ public class UIManager implements OnTouchListener {
 
     public void resume() {
         handler.post(musicTimeRunnable);
+        mRootView.post(this::refreshLauncherTypeface);
+    }
+
+    private void refreshLauncherTypeface() {
+        Typeface typeface = Tuils.getTypeface(mContext);
+        if (typeface == null || mRootView == null) {
+            return;
+        }
+
+        applyTypefaceRecursively(mRootView, typeface);
+
+        if (mTerminalAdapter != null) {
+            mTerminalAdapter.refreshTypeface();
+        }
+
+        TextView asciiView = getLabelView(Label.ascii);
+        if (asciiView != null) {
+            asciiView.setTypeface(Typeface.MONOSPACE);
+        }
+    }
+
+    private void applyTypefaceRecursively(View view, Typeface typeface) {
+        if (view instanceof TextView) {
+            TextView textView = (TextView) view;
+            Typeface current = textView.getTypeface();
+            int style = current != null ? current.getStyle() : Typeface.NORMAL;
+            textView.setTypeface(typeface, style);
+        }
+
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                applyTypefaceRecursively(group.getChildAt(i), typeface);
+            }
+        }
     }
 
     @Override

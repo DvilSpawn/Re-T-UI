@@ -44,6 +44,22 @@ public class KeeperService extends Service {
 
     private CharSequence[] lastCommands = null;
 
+    private String resolvePath(Intent intent) {
+        String path = intent != null ? intent.getStringExtra(PATH_KEY) : null;
+        if (!TextUtils.isEmpty(path)) {
+            return path;
+        }
+
+        try {
+            java.io.File homeDir = XMLPrefsManager.get(java.io.File.class, Behavior.home_path);
+            if (homeDir != null) {
+                return homeDir.getAbsolutePath();
+            }
+        } catch (Exception ignored) {}
+
+        return Tuils.getFolder().getAbsolutePath();
+    }
+
     @Override
     public IBinder onBind(Intent intent) {
         return null;
@@ -68,7 +84,7 @@ public class KeeperService extends Service {
             if(priority > 2) priority = 2;
             if(priority < -2) priority = -2;
 
-            String path = intent != null ? intent.getStringExtra(PATH_KEY) : Tuils.getFolder().getAbsolutePath();
+            String path = resolvePath(intent);
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
                 startForeground(ONGOING_NOTIFICATION_ID, buildNotification(getApplicationContext(), title, subtitle, Tuils.getHint(path),
@@ -89,7 +105,7 @@ public class KeeperService extends Service {
 
             if(lastCommands != null) updateCmds(intent.getStringExtra(CMD_KEY));
 
-            String path = intent != null ? intent.getStringExtra(PATH_KEY) : Tuils.getFolder().getAbsolutePath();
+            String path = resolvePath(intent);
 
             NotificationManagerCompat.from(getApplicationContext()).notify(KeeperService.ONGOING_NOTIFICATION_ID,
                     KeeperService.buildNotification(getApplicationContext(), title, subtitle, Tuils.getHint(path),
@@ -222,12 +238,13 @@ public class KeeperService extends Service {
                     .setLabel(cmdLabel)
                     .build();
 
-            Intent i = new Intent(PublicIOReceiver.ACTION_CMD);
+            Intent i = new Intent(c, PublicIOReceiver.class);
+            i.setAction(PublicIOReceiver.ACTION_CMD);
 
             NotificationCompat.Action.Builder actionBuilder = new NotificationCompat.Action.Builder(
                     R.mipmap.ic_launcher,
                     cmdLabel,
-                    PendingIntent.getBroadcast(c.getApplicationContext(), 40, i, Tuils.pendingIntentFlags(PendingIntent.FLAG_UPDATE_CURRENT)))
+                    PendingIntent.getBroadcast(c.getApplicationContext(), 40, i, remoteInputPendingIntentFlags(PendingIntent.FLAG_UPDATE_CURRENT)))
                         .addRemoteInput(remoteInput);
 
             builder.addAction(actionBuilder.build());
@@ -268,5 +285,12 @@ public class KeeperService extends Service {
             }
             return builder.build();
         }
+    }
+
+    private static int remoteInputPendingIntentFlags(int flags) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            return flags | PendingIntent.FLAG_MUTABLE;
+        }
+        return flags;
     }
 }

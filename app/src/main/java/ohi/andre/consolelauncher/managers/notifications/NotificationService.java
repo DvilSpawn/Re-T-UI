@@ -8,7 +8,6 @@ import android.annotation.TargetApi;
 import android.app.PendingIntent;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.content.pm.ResolveInfo;
 import android.graphics.Color;
 import android.media.MediaMetadata;
 import android.media.session.MediaController;
@@ -39,6 +38,7 @@ import java.util.concurrent.ArrayBlockingQueue;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import ohi.andre.consolelauncher.BuildConfig;
 import ohi.andre.consolelauncher.managers.TerminalManager;
 import ohi.andre.consolelauncher.managers.TimeManager;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -55,7 +55,11 @@ import ohi.andre.consolelauncher.tuils.Tuils;
 public class NotificationService extends NotificationListenerService {
 
     public static final String DESTROY = "destroy";
+    public static final String ACTION_NOTIFICATION_FEED = BuildConfig.APPLICATION_ID + ".notification_feed";
+    public static final String EXTRA_NOTIFICATION_LIST = "notification_list";
+    public static final String ACTION_REQUEST_NOTIFICATION_FEED = BuildConfig.APPLICATION_ID + ".notification_feed_request";
     private static final long MEDIA_SESSION_EMPTY_GRACE_MS = 3000L;
+    private static final int MAX_OVERLAY_NOTIFICATIONS = 12;
 
     private final int UPDATE_TIME = 2000;
     private String LINES_LABEL = "Lines";
@@ -84,6 +88,15 @@ public class NotificationService extends NotificationListenerService {
 
     private MediaSessionManager mediaSessionManager;
     private List<MediaController> activeControllers = new ArrayList<>();
+    private final ArrayList<Notification> overlayNotifications = new ArrayList<>();
+    private final android.content.BroadcastReceiver feedRequestReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent != null && ACTION_REQUEST_NOTIFICATION_FEED.equals(intent.getAction())) {
+                broadcastOverlayNotifications();
+            }
+        }
+    };
     private String lastMediaTitle;
     private String lastMediaArtist;
     private int lastMediaDuration;
@@ -422,6 +435,10 @@ public class NotificationService extends NotificationListenerService {
                                 pastNotifications.get(pack).add(n);
                             }
 
+                            n.appName = appName;
+                            n.preview = buildNotificationPreview(bundle, text);
+                            pushOverlayNotification(n);
+
                             s = TextUtils.replace(s, new String[]{PKG, APP, NEWLINE}, new CharSequence[]{pack, appName, Tuils.NEWLINE});
                             String st = s.toString();
                             while (st.contains(NEWLINE)) {
@@ -488,6 +505,8 @@ public class NotificationService extends NotificationListenerService {
         });
 
         queue = new ArrayBlockingQueue<>(5);
+        LocalBroadcastManager.getInstance(this).registerReceiver(feedRequestReceiver, new android.content.IntentFilter(ACTION_REQUEST_NOTIFICATION_FEED));
+        seedActiveNotifications();
         bgThread.start();
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
@@ -545,6 +564,10 @@ public class NotificationService extends NotificationListenerService {
             pastNotifications = null;
         }
 
+        overlayNotifications.clear();
+        broadcastOverlayNotifications();
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(feedRequestReceiver);
+
         if(queue != null) {
             queue.clear();
             queue = null;
@@ -580,11 +603,110 @@ public class NotificationService extends NotificationListenerService {
     }
 
     @Override
-    public void onNotificationRemoved(StatusBarNotification sbn) {}
+    public void onNotificationRemoved(StatusBarNotification sbn) {
+        if (sbn == null) {
+            return;
+        }
+
+        removeOverlayNotification(sbn.getPackageName(), sbn.getNotification());
+    }
+
+    private void seedActiveNotifications() {
+        if (!enabled || Build.VERSION.SDK_INT < Build.VERSION_CODES.JELLY_BEAN_MR2 || queue == null) {
+            return;
+        }
+
+        try {
+            StatusBarNotification[] activeNotifications = getActiveNotifications();
+            if (activeNotifications == null) {
+                return;
+            }
+
+            for (StatusBarNotification sbn : activeNotifications) {
+                if (sbn != null) {
+                    queue.offer(sbn);
+                }
+            }
+        } catch (SecurityException e) {
+            Tuils.log("Notification access denied while seeding overlay: " + e.getMessage());
+        } catch (Exception e) {
+            Tuils.log(e);
+        }
+    }
+
+    private String buildNotificationPreview(Bundle bundle, String fallback) {
+        if (bundle == null) {
+            return fallback;
+        }
+
+        CharSequence title = bundle.getCharSequence(android.app.Notification.EXTRA_TITLE);
+        CharSequence text = bundle.getCharSequence(android.app.Notification.EXTRA_TEXT);
+        CharSequence bigText = bundle.getCharSequence(android.app.Notification.EXTRA_BIG_TEXT);
+
+        String titleString = title != null ? title.toString().trim() : Tuils.EMPTYSTRING;
+        String bodyString = text != null ? text.toString().trim() : Tuils.EMPTYSTRING;
+        if (TextUtils.isEmpty(bodyString) && bigText != null) {
+            bodyString = bigText.toString().trim();
+        }
+
+        if (!TextUtils.isEmpty(titleString) && !TextUtils.isEmpty(bodyString)) {
+            return titleString + " - " + bodyString;
+        }
+        if (!TextUtils.isEmpty(titleString)) {
+            return titleString;
+        }
+        if (!TextUtils.isEmpty(bodyString)) {
+            return bodyString;
+        }
+        return fallback;
+    }
+
+    private void pushOverlayNotification(Notification notification) {
+        if (notification == null) {
+            return;
+        }
+
+        for (int i = 0; i < overlayNotifications.size(); i++) {
+            Notification existing = overlayNotifications.get(i);
+            if (TextUtils.equals(existing.pkg, notification.pkg) && TextUtils.equals(existing.preview, notification.preview)) {
+                overlayNotifications.remove(i);
+                break;
+            }
+        }
+
+        overlayNotifications.add(0, notification);
+        while (overlayNotifications.size() > MAX_OVERLAY_NOTIFICATIONS) {
+            overlayNotifications.remove(overlayNotifications.size() - 1);
+        }
+
+        broadcastOverlayNotifications();
+    }
+
+    private void removeOverlayNotification(String pkg, android.app.Notification rawNotification) {
+        String preview = buildNotificationPreview(NotificationCompat.getExtras(rawNotification), null);
+
+        for (int i = 0; i < overlayNotifications.size(); i++) {
+            Notification existing = overlayNotifications.get(i);
+            boolean packageMatches = TextUtils.equals(existing.pkg, pkg);
+            boolean previewMatches = TextUtils.equals(existing.preview, preview);
+            if (packageMatches && (previewMatches || TextUtils.isEmpty(preview))) {
+                overlayNotifications.remove(i);
+                i--;
+            }
+        }
+
+        broadcastOverlayNotifications();
+    }
+
+    private void broadcastOverlayNotifications() {
+        Intent intent = new Intent(ACTION_NOTIFICATION_FEED);
+        intent.putParcelableArrayListExtra(EXTRA_NOTIFICATION_LIST, new ArrayList<>(overlayNotifications));
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
+    }
 
     public static class Notification implements Parcelable {
         public long time;
-        public String text, pkg;
+        public String text, pkg, appName, preview;
         public PendingIntent pendingIntent;
 
         public Notification(long time, String text, String pkg, PendingIntent pi) {
@@ -598,6 +720,8 @@ public class NotificationService extends NotificationListenerService {
             time = in.readLong();
             text = in.readString();
             pkg = in.readString();
+            appName = in.readString();
+            preview = in.readString();
             pendingIntent = in.readParcelable(PendingIntent.class.getClassLoader());
         }
 
@@ -623,6 +747,8 @@ public class NotificationService extends NotificationListenerService {
             dest.writeLong(time);
             dest.writeString(text);
             dest.writeString(pkg);
+            dest.writeString(appName);
+            dest.writeString(preview);
             dest.writeParcelable(pendingIntent, flags);
         }
     }

@@ -264,7 +264,14 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
         boolean showNotification = XMLPrefsManager.getBoolean(Behavior.tui_notification);
         Intent keeperIntent = new Intent(this, KeeperService.class);
         if (showNotification) {
-            keeperIntent.putExtra(KeeperService.PATH_KEY, XMLPrefsManager.get(Behavior.home_path));
+            String homePath;
+            try {
+                java.io.File homeDir = XMLPrefsManager.get(java.io.File.class, Behavior.home_path);
+                homePath = homeDir != null ? homeDir.getAbsolutePath() : Tuils.getFolder().getAbsolutePath();
+            } catch (Exception e) {
+                homePath = Tuils.getFolder().getAbsolutePath();
+            }
+            keeperIntent.putExtra(KeeperService.PATH_KEY, homePath);
             startService(keeperIntent);
         } else {
             try {

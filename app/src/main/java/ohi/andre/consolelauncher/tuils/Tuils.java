@@ -157,54 +157,106 @@ public class Tuils {
 
     public static Typeface getTypeface(Context context) {
         if(globalTypeface == null) {
+            boolean prefsLoaded = false;
+            boolean systemFont = true;
+            String configuredFont = null;
+
             try {
                 XMLPrefsManager.loadCommons(context);
+                prefsLoaded = true;
+                systemFont = XMLPrefsManager.getBoolean(Ui.system_font);
+                configuredFont = XMLPrefsManager.get(Ui.font_file);
             } catch (Exception e) {
-                return null;
+                Log.e("TUI-FONT", "Unable to load font prefs, trying filesystem fallback", e);
             }
 
-            boolean systemFont = XMLPrefsManager.getBoolean(Ui.system_font);
-            if(systemFont) globalTypeface = Typeface.DEFAULT;
-            else {
-                File tui = Tuils.getFolder();
-                File font = null;
-                if(tui != null) {
-                    File[] files = tui.listFiles();
-                    if (files != null) {
-                        for(File f : files) {
-                            if (f.isDirectory()) continue;
-                            String name = f.getName().toLowerCase();
-                            if(name.endsWith(".ttf") || name.endsWith(".otf")) {
-                                font = f;
-                                fontPath = f.getAbsolutePath();
-                                break;
-                            }
-                        }
-                    }
-                }
-
-                if(font != null && font.exists() && font.length() > 0) {
+            File tui = Tuils.getFolder();
+            File font = resolveConfiguredFontFile(tui, configuredFont);
+            if (font == null) {
+                font = resolveLegacyFontFile(tui);
+                if (prefsLoaded && !systemFont && font != null && (configuredFont == null || configuredFont.trim().length() == 0)) {
                     try {
-                        Log.e("TUI-FONT", "Attempting to create Typeface from: " + font.getAbsolutePath());
-                        globalTypeface = Typeface.createFromFile(font);
-                    } catch (Exception e) {
-                        Log.e("TUI-FONT", "Failed to load font from " + font.getAbsolutePath(), e);
-                        Tuils.log(e);
-                        Tuils.toFile(e);
-                        globalTypeface = null;
-                    }
+                        XMLPrefsManager.XMLPrefsRoot.UI.write(Ui.font_file, font.getName());
+                    } catch (Exception ignored) {}
+                }
+            }
+
+            if (prefsLoaded && systemFont) {
+                globalTypeface = Typeface.DEFAULT;
+                fontPath = null;
+                Log.e("TUI-FONT", "Using system font");
+            } else if(font != null && font.exists() && font.length() > 0) {
+                try {
+                    fontPath = font.getAbsolutePath();
+                    Log.e("TUI-FONT", "Attempting to create Typeface from: " + fontPath);
+                    globalTypeface = Typeface.createFromFile(font);
+                    Log.e("TUI-FONT", "Loaded custom font: " + fontPath);
+                } catch (Exception e) {
+                    Log.e("TUI-FONT", "Failed to load font from " + font.getAbsolutePath(), e);
+                    Tuils.log(e);
+                    Tuils.toFile(e);
+                    globalTypeface = null;
                 }
             }
 
             if(globalTypeface == null) {
                 try {
                     globalTypeface = Typeface.createFromAsset(context.getAssets(), "lucida_console.ttf");
+                    fontPath = "asset://lucida_console.ttf";
+                    Log.e("TUI-FONT", "Falling back to bundled font");
                 } catch (Exception e) {
                     globalTypeface = Typeface.DEFAULT;
+                    fontPath = null;
+                    Log.e("TUI-FONT", "Falling back to system default font");
                 }
             }
         }
         return globalTypeface;
+    }
+
+    private static File resolveConfiguredFontFile(File tui, String configuredFont) {
+        if (tui == null || configuredFont == null) {
+            return null;
+        }
+
+        configuredFont = configuredFont.trim();
+        if (configuredFont.length() == 0) {
+            return null;
+        }
+
+        File direct = new File(tui, configuredFont);
+        if (direct.exists() && direct.isFile()) {
+            return direct;
+        }
+
+        File fontsDir = new File(tui, "fonts");
+        File inFontsDir = new File(fontsDir, configuredFont);
+        if (inFontsDir.exists() && inFontsDir.isFile()) {
+            return inFontsDir;
+        }
+
+        return null;
+    }
+
+    private static File resolveLegacyFontFile(File tui) {
+        if (tui == null) {
+            return null;
+        }
+
+        File[] files = tui.listFiles();
+        if (files == null) {
+            return null;
+        }
+
+        for(File f : files) {
+            if (f.isDirectory()) continue;
+            String name = f.getName().toLowerCase();
+            if(name.endsWith(".ttf") || name.endsWith(".otf")) {
+                return f;
+            }
+        }
+
+        return null;
     }
 
     public static void cancelFont() {

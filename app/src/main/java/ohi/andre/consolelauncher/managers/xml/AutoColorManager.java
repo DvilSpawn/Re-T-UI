@@ -104,13 +104,13 @@ public final class AutoColorManager {
         int overlay = Color.argb(196, Color.red(background), Color.green(background), Color.blue(background));
 
         return new Palette(background, surface, surfaceStrong, accent, text, mutedText, overlay,
-                buildSuggestionStyle(accent, background, 0.88f, 0.02f),
-                buildSuggestionStyle(accent, background, 0.72f, 0.10f),
-                buildSuggestionStyle(accent, background, 1.05f, -0.04f),
-                buildSuggestionStyle(accent, background, 0.76f, 0.16f),
-                buildSuggestionStyle(accent, background, 0.82f, 0.22f),
-                buildSuggestionStyle(accent, background, 0.62f, 0.08f),
-                buildSuggestionStyle(accent, background, 0.54f, 0.14f));
+                buildSuggestionStyle(accent, background, 0f, 0.96f, 0.04f),
+                buildSuggestionStyle(accent, background, 18f, 0.82f, 0.10f),
+                buildSuggestionStyle(accent, background, -18f, 1.12f, -0.02f),
+                buildSuggestionStyle(accent, background, 34f, 0.78f, 0.18f),
+                buildSuggestionStyle(accent, background, -34f, 0.88f, 0.20f),
+                buildSuggestionStyle(accent, background, 52f, 0.74f, 0.08f),
+                buildSuggestionStyle(accent, background, -8f, 0.60f, 0.14f));
     }
 
     private static Palette buildFromBitmap(Bitmap bitmap) {
@@ -165,13 +165,13 @@ public final class AutoColorManager {
         int overlay = Color.argb(196, Color.red(background), Color.green(background), Color.blue(background));
 
         return new Palette(background, surface, surfaceStrong, accent, text, mutedText, overlay,
-                buildSuggestionStyle(accent, background, 0.88f, 0.02f),
-                buildSuggestionStyle(accent, background, 0.72f, 0.10f),
-                buildSuggestionStyle(accent, background, 1.05f, -0.04f),
-                buildSuggestionStyle(accent, background, 0.76f, 0.16f),
-                buildSuggestionStyle(accent, background, 0.82f, 0.22f),
-                buildSuggestionStyle(accent, background, 0.62f, 0.08f),
-                buildSuggestionStyle(accent, background, 0.54f, 0.14f));
+                buildSuggestionStyle(accent, background, 0f, 0.96f, 0.04f),
+                buildSuggestionStyle(accent, background, 18f, 0.82f, 0.10f),
+                buildSuggestionStyle(accent, background, -18f, 1.12f, -0.02f),
+                buildSuggestionStyle(accent, background, 34f, 0.78f, 0.18f),
+                buildSuggestionStyle(accent, background, -34f, 0.88f, 0.20f),
+                buildSuggestionStyle(accent, background, 52f, 0.74f, 0.08f),
+                buildSuggestionStyle(accent, background, -8f, 0.60f, 0.14f));
     }
 
     private static int resolveThemeColor(Theme theme, Palette palette, int fallbackColor) {
@@ -338,10 +338,11 @@ public final class AutoColorManager {
         return readableTextFor(background);
     }
 
-    private static SuggestionStyle buildSuggestionStyle(int accent, int background, float saturationScale, float lightnessDelta) {
+    private static SuggestionStyle buildSuggestionStyle(int accent, int background, float hueShiftDegrees, float saturationScale, float lightnessDelta) {
         float[] hsl = new float[3];
         ColorUtils.colorToHSL(accent, hsl);
 
+        hsl[0] = (hsl[0] + hueShiftDegrees + 360f) % 360f;
         hsl[1] = clamp(hsl[1] * saturationScale, 0.18f, 0.92f);
         hsl[2] = clamp(hsl[2] + lightnessDelta, 0.34f, 0.78f);
 

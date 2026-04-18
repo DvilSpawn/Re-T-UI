@@ -365,6 +365,22 @@ public enum Ui implements XMLPrefsSave {
             return "If true, Re:T-UI will derive runtime theme colors from your wallpaper and override manual theme colors";
         }
     },
+    font_file {
+        @Override
+        public String defaultValue() {
+            return "";
+        }
+
+        @Override
+        public String type() {
+            return XMLPrefsSave.TEXT;
+        }
+
+        @Override
+        public String info() {
+            return "Selected custom font file name from the fonts folder";
+        }
+    },
     fullscreen {
         @Override
         public String defaultValue() {
