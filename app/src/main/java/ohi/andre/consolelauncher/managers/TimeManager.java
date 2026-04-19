@@ -2,22 +2,22 @@ package ohi.andre.consolelauncher.managers;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.text.SpannableString;
+import android.text.SpannableStringBuilder;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.AbsoluteSizeSpan;
 import android.text.style.ForegroundColorSpan;
 
 import java.text.SimpleDateFormat;
+import java.util.ArrayList;
 import java.util.Date;
-import java.util.Map;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.options.Behavior;
 import ohi.andre.consolelauncher.managers.xml.options.Theme;
-import ohi.andre.consolelauncher.tuils.SimpleMutableEntry;
 import ohi.andre.consolelauncher.tuils.Tuils;
 
 /**
@@ -26,8 +26,11 @@ import ohi.andre.consolelauncher.tuils.Tuils;
 
 public class TimeManager {
 
-    Map.Entry<Integer, SimpleDateFormat>[] outputDateFormatList;
-    Map.Entry<Integer, SimpleDateFormat>[] statusDateFormatList;
+    private static final Pattern COLOR_PATTERN = Pattern.compile("#(?:\\d|[a-fA-F]){6}");
+    private static final Pattern SIZE_PATTERN = Pattern.compile("\\[size=(\\d+)](.*?)\\[/size]", Pattern.CASE_INSENSITIVE | Pattern.DOTALL);
+
+    private FormatEntry[] outputDateFormatList;
+    private FormatEntry[] statusDateFormatList;
 
     public static Pattern extractor = Pattern.compile("%t([0-9]*)", Pattern.CASE_INSENSITIVE);
 
@@ -43,35 +46,76 @@ public class TimeManager {
         instance = this;
     }
 
-    private Map.Entry<Integer, SimpleDateFormat>[] createList(Context context, String format, String separator) {
+    private FormatEntry[] createList(Context context, String format, String separator) {
         String[] formats = format.split(separator);
-        Map.Entry<Integer, SimpleDateFormat>[] list = new Map.Entry[formats.length];
-
-        Pattern colorPattern = Pattern.compile("#(?:\\d|[a-fA-F]){6}");
+        FormatEntry[] list = new FormatEntry[formats.length];
 
         for(int c = 0; c < list.length; c++) {
             try {
                 formats[c] = Tuils.patternNewline.matcher(formats[c]).replaceAll(Tuils.NEWLINE);
 
                 int color = XMLPrefsManager.getColor(Theme.time_color);
-                Matcher m = colorPattern.matcher(formats[c]);
+                Matcher m = COLOR_PATTERN.matcher(formats[c]);
                 if(m.find()) {
                     color = Color.parseColor(m.group());
                     formats[c] = m.replaceAll(Tuils.EMPTYSTRING);
                 }
 
-                list[c] = new SimpleMutableEntry<>(color, new SimpleDateFormat(formats[c]));
+                list[c] = buildEntry(color, formats[c]);
             } catch (Exception e) {
                 Tuils.sendOutput(Color.RED, context,"Invalid time format: " + formats[c]);
                 if (c > 0) list[c] = list[0];
-                else list[c] = new SimpleMutableEntry<>(Color.RED, new SimpleDateFormat("HH:mm:ss"));
+                else list[c] = buildFallbackEntry();
             }
         }
         return list;
     }
 
-    private Map.Entry<Integer, SimpleDateFormat> get(int index, boolean isStatus) {
-        Map.Entry<Integer, SimpleDateFormat>[] list = isStatus ? statusDateFormatList : outputDateFormatList;
+    private FormatEntry buildEntry(int color, String rawFormat) {
+        List<FormatSegment> segments = new ArrayList<>();
+        Matcher matcher = SIZE_PATTERN.matcher(rawFormat);
+        int cursor = 0;
+        boolean foundSizedSegment = false;
+
+        while (matcher.find()) {
+            foundSizedSegment = true;
+
+            if (matcher.start() > cursor) {
+                addSegment(segments, rawFormat.substring(cursor, matcher.start()), null);
+            }
+
+            addSegment(segments, matcher.group(2), Integer.parseInt(matcher.group(1)));
+            cursor = matcher.end();
+        }
+
+        if (cursor < rawFormat.length()) {
+            addSegment(segments, rawFormat.substring(cursor), null);
+        }
+
+        if (!foundSizedSegment || segments.isEmpty()) {
+            segments.clear();
+            addSegment(segments, rawFormat, null);
+        }
+
+        return new FormatEntry(color, segments);
+    }
+
+    private void addSegment(List<FormatSegment> segments, String pattern, Integer explicitSize) {
+        if (pattern == null || pattern.length() == 0) {
+            return;
+        }
+
+        segments.add(new FormatSegment(new SimpleDateFormat(pattern), explicitSize));
+    }
+
+    private FormatEntry buildFallbackEntry() {
+        List<FormatSegment> segments = new ArrayList<>();
+        segments.add(new FormatSegment(new SimpleDateFormat("HH:mm:ss"), null));
+        return new FormatEntry(Color.RED, segments);
+    }
+
+    private FormatEntry get(int index, boolean isStatus) {
+        FormatEntry[] list = isStatus ? statusDateFormatList : outputDateFormatList;
         if(list == null || list.length == 0) return null;
         if(index < 0 || index >= list.length) index = 0;
 
@@ -119,14 +163,14 @@ public class TimeManager {
             String number = matcher.group(1);
             if(number == null || number.length() == 0) number = "0";
 
-            Map.Entry<Integer, SimpleDateFormat> entry = get(Integer.parseInt(number), isStatus);
+            FormatEntry entry = get(Integer.parseInt(number), isStatus);
             if(entry == null) continue;
 
             CharSequence s = span(context, entry, color, date, size);
             cs = TextUtils.replace(cs, new String[] {matcher.group(0)}, new CharSequence[] {s});
         }
 
-        Map.Entry<Integer, SimpleDateFormat> entry = get(0, isStatus);
+        FormatEntry entry = get(0, isStatus);
         cs = TextUtils.replace(cs, new String[] {"%t"}, new CharSequence[] {span(context, entry, color, date, size)});
 
         return cs;
@@ -168,7 +212,7 @@ public class TimeManager {
             String number = matcher.group(1);
             if(number == null || number.length() == 0) number = "0";
 
-            Map.Entry<Integer, SimpleDateFormat> entry = get(Integer.parseInt(number), isStatus);
+            FormatEntry entry = get(Integer.parseInt(number), isStatus);
             if(entry == null) {
                 return null;
             }
@@ -177,20 +221,36 @@ public class TimeManager {
         } else return null;
     }
 
-    private CharSequence span(Context context, Map.Entry<Integer, SimpleDateFormat> entry, int color, Date date, int size) {
+    private CharSequence span(Context context, FormatEntry entry, int color, Date date, int size) {
         if(entry == null) return Tuils.EMPTYSTRING;
 
-        String tf = entry.getValue().format(date);
-        int clr = color != TerminalManager.NO_COLOR ? color : entry.getKey();
+        SpannableStringBuilder builder = new SpannableStringBuilder();
+        for (FormatSegment segment : entry.segments) {
+            if (segment == null || segment.formatter == null) {
+                continue;
+            }
 
-        SpannableString spannableString = new SpannableString(tf);
-        spannableString.setSpan(new ForegroundColorSpan(clr), 0, tf.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            int start = builder.length();
+            builder.append(segment.formatter.format(date));
+            int end = builder.length();
 
-        if(size != Integer.MAX_VALUE && context != null) {
-            spannableString.setSpan(new AbsoluteSizeSpan(Tuils.convertSpToPixels(size, context)), 0, tf.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            if (end <= start) {
+                continue;
+            }
+
+            int segmentSize = segment.explicitSize != null ? segment.explicitSize : size;
+            if (segmentSize != Integer.MAX_VALUE && context != null) {
+                builder.setSpan(new AbsoluteSizeSpan(Tuils.convertSpToPixels(segmentSize, context)), start, end, Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+            }
         }
 
-        return spannableString;
+        if (builder.length() == 0) {
+            return Tuils.EMPTYSTRING;
+        }
+
+        int clr = color != TerminalManager.NO_COLOR ? color : entry.color;
+        builder.setSpan(new ForegroundColorSpan(clr), 0, builder.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        return builder;
     }
 
     public void dispose() {
@@ -198,5 +258,25 @@ public class TimeManager {
         statusDateFormatList = null;
 
         instance = null;
+    }
+
+    private static class FormatEntry {
+        final int color;
+        final List<FormatSegment> segments;
+
+        FormatEntry(int color, List<FormatSegment> segments) {
+            this.color = color;
+            this.segments = segments;
+        }
+    }
+
+    private static class FormatSegment {
+        final SimpleDateFormat formatter;
+        final Integer explicitSize;
+
+        FormatSegment(SimpleDateFormat formatter, Integer explicitSize) {
+            this.formatter = formatter;
+            this.explicitSize = explicitSize;
+        }
     }
 }

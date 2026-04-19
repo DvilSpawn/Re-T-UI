@@ -263,7 +263,7 @@ public enum Behavior implements XMLPrefsSave {
 
         @Override
         public String info() {
-            return "Define the time format for the status lines at the top";
+            return "Define the time format for the status lines at the top. You can resize parts with [size=30]HH:mm[/size], and use %n for a new line";
         }
 
         @Override
@@ -279,7 +279,7 @@ public enum Behavior implements XMLPrefsSave {
 
         @Override
         public String info() {
-            return "Define the time format for the output lines";
+            return "Define the time format for the output lines. You can resize parts with [size=30]HH:mm[/size]";
         }
 
         @Override

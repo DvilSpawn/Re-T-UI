@@ -108,6 +108,7 @@ public class UIManager implements OnTouchListener {
     public static String ACTION_NOROOT = BuildConfig.APPLICATION_ID + ".ui_noroot";
     public static String ACTION_LOGTOFILE = BuildConfig.APPLICATION_ID + ".ui_log";
     public static String ACTION_CLEAR = BuildConfig.APPLICATION_ID + "ui_clear";
+    public static String ACTION_HACK = BuildConfig.APPLICATION_ID + ".ui_hack";
     public static String ACTION_WEATHER = BuildConfig.APPLICATION_ID + "ui_weather";
     public static String ACTION_WEATHER_GOT_LOCATION = BuildConfig.APPLICATION_ID + "ui_weather_location";
     public static String ACTION_WEATHER_DELAY = BuildConfig.APPLICATION_ID + "ui_weather_delay";
@@ -224,6 +225,103 @@ public class UIManager implements OnTouchListener {
             refreshLauncherTypeface();
         }
     };
+
+    private final Runnable hackHideRunnable = new Runnable() {
+        @Override
+        public void run() {
+            View overlay = mRootView.findViewById(R.id.hack_overlay);
+            if (overlay != null) {
+                overlay.animate().cancel();
+                overlay.setVisibility(View.GONE);
+                overlay.setAlpha(1f);
+            }
+        }
+    };
+
+    private final String[] hackLines = new String[] {
+            "$ ./breach --target=localhost --mode=theatrical",
+            "[BOOT] attaching remote shell...",
+            "[BOOT] syncing fake intrusion assets...",
+            "[AUTH] replaying cached credentials...",
+            "[AUTH] probing token vault A1...",
+            "[AUTH] probing token vault A2...",
+            "[AUTH] probing token vault A3...",
+            "[TRACE] walking local package graph...",
+            "[TRACE] reading launcher aliases...",
+            "[TRACE] reading launcher contacts...",
+            "[TRACE] reading launcher app groups...",
+            "[MEM ] dumping volatile session tokens...",
+            "[MEM ] scanning keyboard buffer...",
+            "[MEM ] scanning clipboard buffer...",
+            "[NET ] tunneling through relay-07...",
+            "[NET ] tunneling through relay-11...",
+            "[NET ] handshaking with mirror node...",
+            "[PROC] escalating pseudo-root privileges...",
+            "[PROC] masking shell signature...",
+            "[PROC] detaching watchdog threads...",
+            "[I/O ] indexing aliases, apps, contacts...",
+            "[I/O ] reading wallpaper palette cache...",
+            "[I/O ] reading notification mirror...",
+            "[CRYP] brute forcing theme entropy...",
+            "[CRYP] brute forcing dashed border seed...",
+            "[CRYP] deriving surface accent offsets...",
+            "[SYNC] mirroring notification buffer...",
+            "[SYNC] mirroring playback metadata...",
+            "[SYNC] mirroring quick launch slots...",
+            "[WARN] firewall politely ignored",
+            "[WARN] device insists everything is fine",
+            "[MESH] propagating into nearby terminals...",
+            "[MESH] seeding ghost sessions...",
+            "[MESH] flooding loopback channel...",
+            "[DB  ] harvesting battery telemetry...",
+            "[DB  ] harvesting session hints...",
+            "[DB  ] harvesting stale command history...",
+            "[VID ] spoofing viewport overlays...",
+            "[VID ] injecting terminal rain...",
+            "[VID ] pinning cinematic contrast...",
+            "[AUX ] scrambling keyboard handshake...",
+            "[AUX ] bouncing cursor driver...",
+            "[AUX ] destabilizing glyph cache...",
+            "[FS  ] mounting /storage/emulated/0/Re-T-UI",
+            "[FS  ] enumerating ui.xml",
+            "[FS  ] enumerating theme.xml",
+            "[FS  ] enumerating suggestions.xml",
+            "[FS  ] enumerating behavior.xml",
+            "[MOD ] patching fake subsystem: notifications",
+            "[MOD ] patching fake subsystem: music",
+            "[MOD ] patching fake subsystem: wallpaper",
+            "[MOD ] patching fake subsystem: battery",
+            "[PING] 127.0.0.1 replied in 0ms",
+            "[PING] 127.0.0.1 replied in 0ms",
+            "[PING] 127.0.0.1 replied in 0ms",
+            "[SCAN] port 22 open",
+            "[SCAN] port 80 filtered",
+            "[SCAN] port 443 open",
+            "[SCAN] port 1337 aesthetically required",
+            "[SEED] generating panic checksum 8f-2c-91",
+            "[SEED] generating panic checksum 8f-2c-92",
+            "[SEED] generating panic checksum 8f-2c-93",
+            "[PIPE] rerouting stdout to dramatic overlay...",
+            "[PIPE] rerouting stderr to dramatic overlay...",
+            "[PIPE] rerouting common sense to /dev/null",
+            "[OVRD] replacing launcher calmness with urgency",
+            "[OVRD] amplifying green phosphor output",
+            "[OVRD] preserving user music widget because priorities",
+            "[HOOK] intercepting idle state...",
+            "[HOOK] intercepting wallpaper refresh...",
+            "[HOOK] intercepting harmless command execution...",
+            "[TASK] assembling unauthorized vibes...",
+            "[TASK] replaying synthetic intrusion frames...",
+            "[TASK] marking sequence irreversible...",
+            "[TASK] sequence actually reversible",
+            "[LOCK] pretending to lock subsystems...",
+            "[LOCK] pretending to exfiltrate secrets...",
+            "[LOCK] pretending to know what any of this means...",
+            "[NULL] dereferencing cinematic stakes...",
+            "[NULL] recovering from fake catastrophe...",
+            "[DONE] dramatic effect complete"
+    };
+    private final ArrayList<Runnable> hackSequenceRunnables = new ArrayList<>();
 
     private class NotesRunnable implements Runnable {
 
@@ -899,6 +997,7 @@ public class UIManager implements OnTouchListener {
 //        filter.addAction(ACTION_CLEAR_SUGGESTIONS);
         filter.addAction(ACTION_LOGTOFILE);
         filter.addAction(ACTION_CLEAR);
+        filter.addAction(ACTION_HACK);
         filter.addAction(ACTION_WEATHER);
         filter.addAction(ACTION_WEATHER_GOT_LOCATION);
         filter.addAction(ACTION_WEATHER_DELAY);
@@ -942,6 +1041,8 @@ public class UIManager implements OnTouchListener {
                     mTerminalAdapter.clear();
                     if (suggestionsManager != null)
                         suggestionsManager.requestSuggestion(Tuils.EMPTYSTRING);
+                } else if (action.equals(ACTION_HACK)) {
+                    playHackOverlay();
                 } else if(action.equals(ACTION_WEATHER)) {
                     Calendar c = Calendar.getInstance();
 
@@ -1076,7 +1177,10 @@ public class UIManager implements OnTouchListener {
 
         LocalBroadcastManager.getInstance(context.getApplicationContext()).registerReceiver(receiver, filter);
         if (XMLPrefsManager.getBoolean(Notifications.show_notifications) || XMLPrefsManager.get(Notifications.show_notifications).equalsIgnoreCase("enabled")) {
-            LocalBroadcastManager.getInstance(context.getApplicationContext()).sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED));
+            final LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(context.getApplicationContext());
+            lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED));
+            rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 350);
+            rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 1100);
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             context.getApplicationContext().registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
@@ -1100,6 +1204,8 @@ public class UIManager implements OnTouchListener {
         } else {
             rootView.setBackgroundColor(XMLPrefsManager.getColor(Theme.overlay_color));
         }
+
+        styleHackOverlay(rootView);
 
 //        scrolllllll
         if(XMLPrefsManager.getBoolean(Behavior.auto_scroll)) {
@@ -1811,6 +1917,98 @@ public class UIManager implements OnTouchListener {
         }
     }
 
+    private void styleHackOverlay(View rootView) {
+        View overlay = rootView.findViewById(R.id.hack_overlay);
+        TextView hackText = rootView.findViewById(R.id.hack_text);
+        if (overlay == null || hackText == null) {
+            return;
+        }
+
+        int accent = XMLPrefsManager.getColor(Theme.music_widget_color);
+        int surface = ColorUtils.setAlphaComponent(XMLPrefsManager.getColor(Theme.window_terminal_bg), 238);
+        int border = ColorUtils.setAlphaComponent(accent, 220);
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.RECTANGLE);
+        bg.setColor(ColorUtils.setAlphaComponent(surface, 232));
+        if (XMLPrefsManager.getBoolean(Ui.enable_dashed_border)) {
+            bg.setStroke((int) Tuils.dpToPx(mContext, 1.5f), border,
+                    Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_dash_length)),
+                    Tuils.dpToPx(mContext, XMLPrefsManager.getInt(Ui.dashed_border_gap_length)));
+        } else {
+            bg.setStroke((int) Tuils.dpToPx(mContext, 1.5f), border);
+        }
+        overlay.setBackground(bg);
+        overlay.setOnClickListener(v -> dismissHackOverlay());
+
+        hackText.setTextColor(accent);
+        hackText.setTypeface(Tuils.getTypeface(mContext));
+        hackText.setTextSize(11f);
+    }
+
+    private void playHackOverlay() {
+        final View overlay = mRootView.findViewById(R.id.hack_overlay);
+        final TextView hackText = mRootView.findViewById(R.id.hack_text);
+        final ScrollView hackScroll = mRootView.findViewById(R.id.hack_scroll);
+        if (overlay == null || hackText == null || hackScroll == null || handler == null) {
+            return;
+        }
+
+        closeKeyboard();
+        styleHackOverlay(mRootView);
+        clearHackCallbacks();
+
+        hackText.setText(":: breach protocol engaged ::\n\n");
+        overlay.setAlpha(0f);
+        overlay.setVisibility(View.VISIBLE);
+        overlay.animate().alpha(1f).setDuration(120).start();
+
+        for (int i = 0; i < hackLines.length; i++) {
+            final String line = hackLines[i];
+            final int delay = 120 + (i * 55);
+            Runnable lineRunnable = () -> {
+                hackText.append(line);
+                hackText.append(Tuils.NEWLINE);
+                hackScroll.post(() -> hackScroll.fullScroll(View.FOCUS_DOWN));
+            };
+            hackSequenceRunnables.add(lineRunnable);
+            handler.postDelayed(lineRunnable, delay);
+        }
+
+        Runnable exitRunnable = () -> {
+            hackText.append(Tuils.NEWLINE + "[EXIT] connection severed");
+            hackScroll.post(() -> hackScroll.fullScroll(View.FOCUS_DOWN));
+        };
+        hackSequenceRunnables.add(exitRunnable);
+        handler.postDelayed(exitRunnable, 120 + (hackLines.length * 55));
+
+        Runnable fadeRunnable = () -> {
+            overlay.animate().alpha(0f).setDuration(180).withEndAction(() -> {
+                overlay.setVisibility(View.GONE);
+                overlay.setAlpha(1f);
+            }).start();
+        };
+        hackSequenceRunnables.add(fadeRunnable);
+        handler.postDelayed(fadeRunnable, 5200);
+    }
+
+    private void clearHackCallbacks() {
+        if (handler == null) {
+            return;
+        }
+
+        for (Runnable runnable : hackSequenceRunnables) {
+            handler.removeCallbacks(runnable);
+        }
+        hackSequenceRunnables.clear();
+        handler.removeCallbacks(hackHideRunnable);
+    }
+
+    private void dismissHackOverlay() {
+        clearHackCallbacks();
+        hackHideRunnable.run();
+    }
+
     private void styleNotificationWidget(View notificationWidget) {
         if (notificationWidget == null) {
             return;
@@ -1970,6 +2168,7 @@ public class UIManager implements OnTouchListener {
         if (mainPack == null || mainPack.appsManager == null) return;
 
         int drawerColor = XMLPrefsManager.getColor(Theme.apps_drawer_color);
+        int borderColor = XMLPrefsManager.getColor(Theme.input_color);
         int widgetBgColor = XMLPrefsManager.getColor(Theme.window_terminal_bg);
 
         appsDrawerHeader.setTextColor(drawerColor);
@@ -1986,9 +2185,9 @@ public class UIManager implements OnTouchListener {
         try {
             GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(mContext.getResources(), R.drawable.apps_drawer_border, null).mutate();
             if (useDashed) {
-                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), drawerColor, Tuils.dpToPx(mContext, dash), Tuils.dpToPx(mContext, gap));
+                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), borderColor, Tuils.dpToPx(mContext, dash), Tuils.dpToPx(mContext, gap));
             } else {
-                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), drawerColor);
+                gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), borderColor);
             }
             gd.setColor(widgetBgColor);
             appsDrawerRoot.findViewById(R.id.apps_drawer_container).setBackgroundDrawable(gd);
@@ -1998,9 +2197,9 @@ public class UIManager implements OnTouchListener {
             GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(mContext.getResources(), R.drawable.apps_drawer_header_border, null).mutate();
             if (gd != null) {
                 if (useDashed) {
-                    gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), drawerColor, Tuils.dpToPx(mContext, dash), Tuils.dpToPx(mContext, gap));
+                    gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), borderColor, Tuils.dpToPx(mContext, dash), Tuils.dpToPx(mContext, gap));
                 } else {
-                    gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), drawerColor);
+                    gd.setStroke((int) Tuils.dpToPx(mContext, 1.5f), borderColor);
                 }
                 gd.setColor(widgetBgColor);
                 appsDrawerHeader.setBackgroundDrawable(gd);
@@ -2038,17 +2237,17 @@ public class UIManager implements OnTouchListener {
             appsDrawerAdapter.setColors(drawerColor, widgetBgColor);
         }
 
-        buildGroupTabs(mainPack.appsManager, drawerColor, widgetBgColor);
-        rebuildAppsDrawerContents(mainPack.appsManager, drawerColor, widgetBgColor);
+        buildGroupTabs(mainPack.appsManager, drawerColor, borderColor, widgetBgColor);
+        rebuildAppsDrawerContents(mainPack.appsManager, drawerColor, borderColor, widgetBgColor);
         appsDrawerRoot.setVisibility(View.VISIBLE);
     }
 
-    private void buildGroupTabs(AppsManager appsManager, int drawerColor, int widgetBgColor) {
+    private void buildGroupTabs(AppsManager appsManager, int drawerColor, int borderColor, int widgetBgColor) {
         if (appsGroupTabs == null) return;
 
         appsGroupTabs.removeAllViews();
 
-        addGroupTab("ALL", null, drawerColor, widgetBgColor, true);
+        addGroupTab("ALL", null, drawerColor, borderColor, widgetBgColor, true);
 
         List<AppsManager.Group> groups = new ArrayList<>(appsManager.groups);
         Collections.sort(groups, (a, b) -> Tuils.alphabeticCompare(a.name(), b.name()));
@@ -2056,11 +2255,11 @@ public class UIManager implements OnTouchListener {
             String tabLabel = group.name().length() <= 3
                     ? group.name().toUpperCase(Locale.getDefault())
                     : group.name().substring(0, 3).toUpperCase(Locale.getDefault());
-            addGroupTab(tabLabel, group.name(), drawerColor, widgetBgColor, false);
+            addGroupTab(tabLabel, group.name(), drawerColor, borderColor, widgetBgColor, false);
         }
     }
 
-    private void addGroupTab(String label, String groupName, int drawerColor, int widgetBgColor, boolean isAll) {
+    private void addGroupTab(String label, String groupName, int drawerColor, int borderColor, int widgetBgColor, boolean isAll) {
         TextView tab = new TextView(mContext);
         LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         lp.bottomMargin = (int) Tuils.dpToPx(mContext, 6);
@@ -2092,7 +2291,7 @@ public class UIManager implements OnTouchListener {
 
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(Tuils.dpToPx(mContext, 2));
-        bg.setStroke((int) Tuils.dpToPx(mContext, 1.5f), drawerColor);
+        bg.setStroke((int) Tuils.dpToPx(mContext, 1.5f), borderColor);
         bg.setColor(selected ? selectedColor : bgColor);
         tab.setBackground(bg);
         tab.setTextColor(selected ? widgetBgColor : fgColor);
@@ -2100,8 +2299,8 @@ public class UIManager implements OnTouchListener {
 
         tab.setOnClickListener(v -> {
             selectedAppsDrawerGroup = groupName;
-            buildGroupTabs(mainPack.appsManager, drawerColor, widgetBgColor);
-            rebuildAppsDrawerContents(mainPack.appsManager, drawerColor, widgetBgColor);
+            buildGroupTabs(mainPack.appsManager, drawerColor, borderColor, widgetBgColor);
+            rebuildAppsDrawerContents(mainPack.appsManager, drawerColor, borderColor, widgetBgColor);
         });
 
         appsGroupTabs.addView(tab);
@@ -2117,7 +2316,7 @@ public class UIManager implements OnTouchListener {
         return null;
     }
 
-    private void rebuildAppsDrawerContents(AppsManager appsManager, int drawerColor, int widgetBgColor) {
+    private void rebuildAppsDrawerContents(AppsManager appsManager, int drawerColor, int borderColor, int widgetBgColor) {
         List<AppsManager.LaunchInfo> visibleApps = getAppsForDrawer(appsManager);
         appsDrawerEntries.clear();
         appsDrawerAlphaPositions.clear();
@@ -2135,7 +2334,7 @@ public class UIManager implements OnTouchListener {
         }
 
         appsDrawerAdapter.notifyDataSetChanged();
-        buildAlphabetTabs(drawerColor, widgetBgColor);
+        buildAlphabetTabs(drawerColor, borderColor, widgetBgColor);
 
         String scope = selectedAppsDrawerGroup == null ? "all" : selectedAppsDrawerGroup;
         appsDrawerHeader.setText("Applications/ [" + visibleApps.size() + "] <" + scope + ">");
@@ -2177,7 +2376,7 @@ public class UIManager implements OnTouchListener {
         return String.valueOf(first);
     }
 
-    private void buildAlphabetTabs(int drawerColor, int widgetBgColor) {
+    private void buildAlphabetTabs(int drawerColor, int borderColor, int widgetBgColor) {
         if (appsAlphaTabs == null) return;
 
         appsAlphaTabs.removeAllViews();
@@ -2194,7 +2393,7 @@ public class UIManager implements OnTouchListener {
             tab.setText(entry.getKey());
             tab.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
             tab.setTextSize(9.5f);
-            styleAlphaTab(tab, entry.getKey(), drawerColor, widgetBgColor);
+            styleAlphaTab(tab, entry.getKey(), drawerColor, borderColor, widgetBgColor);
             tab.setOnClickListener(v -> {
                 appsList.setSelection(entry.getValue());
                 updateSelectedAlpha(entry.getKey());
@@ -2204,14 +2403,14 @@ public class UIManager implements OnTouchListener {
         }
     }
 
-    private void styleAlphaTab(TextView tab, String letter, int drawerColor, int widgetBgColor) {
+    private void styleAlphaTab(TextView tab, String letter, int drawerColor, int borderColor, int widgetBgColor) {
         boolean selected = letter != null && letter.equals(selectedAppsDrawerAlpha);
         tab.setTextColor(selected ? widgetBgColor : drawerColor);
         int selectedColor = getDrawerSelectionColor(drawerColor, widgetBgColor);
 
         GradientDrawable bg = new GradientDrawable();
         bg.setCornerRadius(Tuils.dpToPx(mContext, 2));
-        bg.setStroke((int) Tuils.dpToPx(mContext, 1.2f), drawerColor);
+        bg.setStroke((int) Tuils.dpToPx(mContext, 1.2f), borderColor);
         bg.setColor(selected ? selectedColor : widgetBgColor);
         tab.setBackground(bg);
     }
@@ -2246,9 +2445,10 @@ public class UIManager implements OnTouchListener {
 
         selectedAppsDrawerAlpha = letter;
         int drawerColor = XMLPrefsManager.getColor(Theme.apps_drawer_color);
+        int borderColor = XMLPrefsManager.getColor(Theme.input_color);
         int widgetBgColor = XMLPrefsManager.getColor(Theme.window_terminal_bg);
         for (Map.Entry<String, TextView> entry : appsDrawerAlphaViews.entrySet()) {
-            styleAlphaTab(entry.getValue(), entry.getKey(), drawerColor, widgetBgColor);
+            styleAlphaTab(entry.getValue(), entry.getKey(), drawerColor, borderColor, widgetBgColor);
         }
     }
 

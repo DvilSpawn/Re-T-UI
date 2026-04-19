@@ -279,6 +279,7 @@
     <string name="help_devutils">There\'s nothing interesting there</string>
     <string name="help_donate">Offer a coffee to the developer (PayPal only)</string>
     <string name="help_flash">Toggle the flashlight</string>
+    <string name="help_hack">Play a fake hacking overlay animation</string>
     <string name="help_help">Print the available commands, or info about a command
         \n\nUsage:
         \n$ help [command]

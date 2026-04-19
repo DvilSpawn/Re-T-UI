@@ -58,6 +58,7 @@ public class NotificationService extends NotificationListenerService {
     public static final String ACTION_NOTIFICATION_FEED = BuildConfig.APPLICATION_ID + ".notification_feed";
     public static final String EXTRA_NOTIFICATION_LIST = "notification_list";
     public static final String ACTION_REQUEST_NOTIFICATION_FEED = BuildConfig.APPLICATION_ID + ".notification_feed_request";
+    public static final String ACTION_RELOAD_NOTIFICATION_CONFIG = BuildConfig.APPLICATION_ID + ".notification_reload";
     private static final long MEDIA_SESSION_EMPTY_GRACE_MS = 3000L;
     private static final int MAX_OVERLAY_NOTIFICATIONS = 12;
 
@@ -97,6 +98,14 @@ public class NotificationService extends NotificationListenerService {
             }
         }
     };
+    private final android.content.BroadcastReceiver reloadReceiver = new android.content.BroadcastReceiver() {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if (intent != null && ACTION_RELOAD_NOTIFICATION_CONFIG.equals(intent.getAction())) {
+                reloadNotificationConfig();
+            }
+        }
+    };
     private String lastMediaTitle;
     private String lastMediaArtist;
     private int lastMediaDuration;
@@ -128,6 +137,19 @@ public class NotificationService extends NotificationListenerService {
             broadcastMediaMetadata();
         }
     };
+
+    public static void requestReload(Context context) {
+        if (context == null) {
+            return;
+        }
+
+        Intent intent = new Intent(context, NotificationService.class);
+        intent.setAction(ACTION_RELOAD_NOTIFICATION_CONFIG);
+        context.startService(intent);
+
+        LocalBroadcastManager.getInstance(context.getApplicationContext())
+                .sendBroadcast(new Intent(ACTION_RELOAD_NOTIFICATION_CONFIG));
+    }
 
     private void updateActiveSessions(List<MediaController> controllers) {
         for (MediaController controller : activeControllers) {
@@ -474,17 +496,7 @@ public class NotificationService extends NotificationListenerService {
         };
 
         manager = getPackageManager();
-        enabled = XMLPrefsManager.getBoolean(Notifications.show_notifications) || XMLPrefsManager.get(Notifications.show_notifications).equalsIgnoreCase("enabled");
-
         pastNotifications = new HashMap<>();
-
-        format = XMLPrefsManager.get(Notifications.notification_format);
-        color = XMLPrefsManager.getColor(Notifications.default_notification_color);
-
-        click = XMLPrefsManager.getBoolean(Notifications.click_notification);
-        longClick = XMLPrefsManager.getBoolean(Notifications.long_click_notification);
-
-        maxOptionalDepth = XMLPrefsManager.getInt(Behavior.max_optional_depth);
 
         handler.post(new Runnable() {
             @Override
@@ -506,6 +518,8 @@ public class NotificationService extends NotificationListenerService {
 
         queue = new ArrayBlockingQueue<>(5);
         LocalBroadcastManager.getInstance(this).registerReceiver(feedRequestReceiver, new android.content.IntentFilter(ACTION_REQUEST_NOTIFICATION_FEED));
+        LocalBroadcastManager.getInstance(this).registerReceiver(reloadReceiver, new android.content.IntentFilter(ACTION_RELOAD_NOTIFICATION_CONFIG));
+        loadConfig();
         seedActiveNotifications();
         bgThread.start();
 
@@ -526,6 +540,12 @@ public class NotificationService extends NotificationListenerService {
     @Override
     public int onStartCommand(Intent intent, int flags, int startId) {
         if(intent != null) {
+            if (ACTION_RELOAD_NOTIFICATION_CONFIG.equals(intent.getAction())) {
+                if(!active) init();
+                reloadNotificationConfig();
+                return START_STICKY;
+            }
+
             boolean destroy = intent.getBooleanExtra(DESTROY, false);
             if(destroy) dispose();
         }
@@ -567,6 +587,7 @@ public class NotificationService extends NotificationListenerService {
         overlayNotifications.clear();
         broadcastOverlayNotifications();
         LocalBroadcastManager.getInstance(this).unregisterReceiver(feedRequestReceiver);
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(reloadReceiver);
 
         if(queue != null) {
             queue.clear();
@@ -632,6 +653,37 @@ public class NotificationService extends NotificationListenerService {
         } catch (Exception e) {
             Tuils.log(e);
         }
+    }
+
+    private void loadConfig() {
+        enabled = XMLPrefsManager.getBoolean(Notifications.show_notifications) || XMLPrefsManager.get(Notifications.show_notifications).equalsIgnoreCase("enabled");
+        format = XMLPrefsManager.get(Notifications.notification_format);
+        color = XMLPrefsManager.getColor(Notifications.default_notification_color);
+        click = XMLPrefsManager.getBoolean(Notifications.click_notification);
+        longClick = XMLPrefsManager.getBoolean(Notifications.long_click_notification);
+        maxOptionalDepth = XMLPrefsManager.getInt(Behavior.max_optional_depth);
+
+        if(notificationManager != null) {
+            notificationManager.dispose();
+        }
+        notificationManager = NotificationManager.create(this);
+    }
+
+    private void reloadNotificationConfig() {
+        loadConfig();
+
+        if (queue != null) {
+            queue.clear();
+        }
+
+        if (!enabled) {
+            overlayNotifications.clear();
+            broadcastOverlayNotifications();
+            return;
+        }
+
+        seedActiveNotifications();
+        broadcastOverlayNotifications();
     }
 
     private String buildNotificationPreview(Bundle bundle, String fallback) {

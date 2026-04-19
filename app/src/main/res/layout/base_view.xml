@@ -42,6 +42,30 @@
 
     </LinearLayout>
 
+    <RelativeLayout
+        android:id="@+id/hack_overlay"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:visibility="gone"
+        android:padding="20dp">
+
+        <ScrollView
+            android:id="@+id/hack_scroll"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:fillViewport="true">
+
+            <TextView
+                android:id="@+id/hack_text"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:padding="12dp"
+                android:textSize="13sp" />
+
+        </ScrollView>
+
+    </RelativeLayout>
+
     <include
         layout="@layout/apps_drawer"
         android:layout_width="match_parent"

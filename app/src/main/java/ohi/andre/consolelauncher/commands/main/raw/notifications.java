@@ -11,6 +11,7 @@ import ohi.andre.consolelauncher.commands.main.MainPack;
 import ohi.andre.consolelauncher.commands.main.specific.APICommand;
 import ohi.andre.consolelauncher.commands.main.specific.ParamCommand;
 import ohi.andre.consolelauncher.managers.notifications.NotificationManager;
+import ohi.andre.consolelauncher.managers.notifications.NotificationService;
 import ohi.andre.consolelauncher.tuils.Tuils;
 
 import static android.os.Build.VERSION_CODES.JELLY_BEAN_MR2;
@@ -32,6 +33,7 @@ public class notifications extends ParamCommand implements APICommand {
             @Override
             public String exec(ExecutePack pack) {
                 String output = NotificationManager.setState(pack.getLaunchInfo().componentName.getPackageName(), true);
+                NotificationService.requestReload(pack.context);
                 if(output == null || output.length() == 0) return null;
                 return output;
             }
@@ -50,6 +52,7 @@ public class notifications extends ParamCommand implements APICommand {
             @Override
             public String exec(ExecutePack pack) {
                 String output = NotificationManager.setState(pack.getLaunchInfo().componentName.getPackageName(), false);
+                NotificationService.requestReload(pack.context);
                 if(output == null || output.length() == 0) return null;
                 return output;
             }
@@ -69,6 +72,7 @@ public class notifications extends ParamCommand implements APICommand {
             public String exec(ExecutePack pack) {
                 String color = pack.getString();
                 String output = NotificationManager.setColor(pack.getLaunchInfo().componentName.getPackageName(), color);
+                NotificationService.requestReload(pack.context);
                 if(output == null || output.length() == 0) return null;
                 return output;
             }
@@ -92,6 +96,7 @@ public class notifications extends ParamCommand implements APICommand {
             public String exec(ExecutePack pack) {
                 String s = pack.getString();
                 String output = NotificationManager.setFormat(pack.getLaunchInfo().componentName.getPackageName(), s);
+                NotificationService.requestReload(pack.context);
                 if(output == null || output.length() == 0) return null;
                 return output;
             }
@@ -111,6 +116,7 @@ public class notifications extends ParamCommand implements APICommand {
             public String exec(ExecutePack pack) {
                 int id = pack.getInt();
                 String output = NotificationManager.addFilter(pack.getString(), id);
+                NotificationService.requestReload(pack.context);
                 if(output == null || output.length() == 0) return null;
                 return output;
             }
@@ -130,6 +136,7 @@ public class notifications extends ParamCommand implements APICommand {
             public String exec(ExecutePack pack) {
                 int id = pack.getInt();
                 String output = NotificationManager.addFormat(pack.getString(), id);
+                NotificationService.requestReload(pack.context);
                 if(output == null || output.length() == 0) return null;
                 return output;
             }
@@ -148,6 +155,7 @@ public class notifications extends ParamCommand implements APICommand {
             @Override
             public String exec(ExecutePack pack) {
                 String output = NotificationManager.rmFilter(pack.getInt());
+                NotificationService.requestReload(pack.context);
                 if(output == null || output.length() == 0) return null;
                 return output;
             }
@@ -166,6 +174,7 @@ public class notifications extends ParamCommand implements APICommand {
             @Override
             public String exec(ExecutePack pack) {
                 String output = NotificationManager.rmFormat(pack.getInt());
+                NotificationService.requestReload(pack.context);
                 if(output == null || output.length() == 0) return null;
                 return output;
             }
