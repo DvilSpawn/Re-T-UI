@@ -9,6 +9,7 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -19,7 +20,6 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import java.io.File;
-import java.io.FileInputStream;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,6 +27,7 @@ import java.util.Comparator;
 import java.util.List;
 
 import ohi.andre.consolelauncher.LauncherActivity;
+import ohi.andre.consolelauncher.managers.PresetManager;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.options.Behavior;
 import ohi.andre.consolelauncher.managers.xml.options.Ui;
@@ -254,20 +255,16 @@ public class ThemerActivity extends AppCompatActivity {
                         .show();
             } else {
                 // Apply
-                File presetsDir = new File(Tuils.getFolder(), "presets");
-                if (!presetsDir.exists()) presetsDir.mkdirs();
-                File[] presets = presetsDir.listFiles(File::isDirectory);
-                if (presets == null || presets.length == 0) {
+                List<String> presetNames = PresetManager.listPresets();
+                if (presetNames.isEmpty()) {
                     Toast.makeText(ThemerActivity.this, "No presets found.", Toast.LENGTH_SHORT).show();
                     return;
                 }
-                String[] presetNames = new String[presets.length];
-                for (int i = 0; i < presets.length; i++) presetNames[i] = presets[i].getName();
 
                 new AlertDialog.Builder(ThemerActivity.this)
                         .setTitle("Select Preset")
-                        .setItems(presetNames, (d, w) -> {
-                            applyPreset(presetNames[w]);
+                        .setItems(presetNames.toArray(new String[0]), (d, w) -> {
+                            applyPreset(presetNames.get(w));
                         })
                         .show();
             }
@@ -276,66 +273,23 @@ public class ThemerActivity extends AppCompatActivity {
     }
 
     private void savePreset(String name) {
-        File presetsDir = new File(Tuils.getFolder(), "presets");
-        if (!presetsDir.exists()) presetsDir.mkdirs();
-
-        File presetFolder = new File(presetsDir, name);
-        if (!presetFolder.exists()) presetFolder.mkdirs();
-
-        File themeFile = new File(presetFolder, "theme.xml");
-        File suggestionsFile = new File(presetFolder, "suggestions.xml");
-
-        if (XMLPrefsManager.getBoolean(Ui.auto_color_pick)) {
-            StringBuilder themeXml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<THEME>\n");
-            for (ohi.andre.consolelauncher.managers.xml.options.Theme theme : ohi.andre.consolelauncher.managers.xml.options.Theme.values()) {
-                int color = AutoColorManager.getAutoColor(theme, Integer.MAX_VALUE);
-                if (color != Integer.MAX_VALUE) {
-                    themeXml.append("\t<").append(theme.label()).append(" value=\"").append(String.format("#%08X", color)).append("\" />\n");
-                } else {
-                    themeXml.append("\t<").append(theme.label()).append(" value=\"").append(theme.defaultValue()).append("\" />\n");
+        try {
+            PresetManager.save(name);
+            Toast.makeText(ThemerActivity.this, "Preset saved! Reloading...", Toast.LENGTH_SHORT).show();
+            recyclerView.postDelayed(() -> {
+                if (LauncherActivity.instance != null) {
+                    LauncherActivity.instance.reload();
                 }
-            }
-            themeXml.append("</THEME>");
-
-            StringBuilder suggXml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SUGGESTIONS>\n");
-            for (ohi.andre.consolelauncher.managers.xml.options.Suggestions suggestion : ohi.andre.consolelauncher.managers.xml.options.Suggestions.values()) {
-                int color = AutoColorManager.getAutoColor(suggestion, Integer.MAX_VALUE);
-                if (color != Integer.MAX_VALUE) {
-                    suggXml.append("\t<").append(suggestion.label()).append(" value=\"").append(String.format("#%08X", color)).append("\" />\n");
-                } else {
-                    suggXml.append("\t<").append(suggestion.label()).append(" value=\"").append(suggestion.defaultValue()).append("\" />\n");
-                }
-            }
-            suggXml.append("</SUGGESTIONS>");
-
-            try {
-                Tuils.write(themeFile, themeXml.toString());
-                Tuils.write(suggestionsFile, suggXml.toString());
-            } catch (Exception e) {}
-        } else {
-            File currentTheme = new File(Tuils.getFolder(), "theme.xml");
-            File currentSuggestions = new File(Tuils.getFolder(), "suggestions.xml");
-            try {
-                if (currentTheme.exists()) Tuils.copy(currentTheme, themeFile);
-                if (currentSuggestions.exists()) Tuils.copy(currentSuggestions, suggestionsFile);
-            } catch (Exception e) {}
+                finish();
+            }, 500);
+        } catch (Exception e) {
+            Toast.makeText(ThemerActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
         }
-        Toast.makeText(ThemerActivity.this, "Preset saved!", Toast.LENGTH_SHORT).show();
     }
 
     private void applyPreset(String name) {
-        File presetFolder = new File(Tuils.getFolder(), "presets/" + name);
-        File themeFile = new File(presetFolder, "theme.xml");
-        File suggestionsFile = new File(presetFolder, "suggestions.xml");
-
-        File currentTheme = new File(Tuils.getFolder(), "theme.xml");
-        File currentSuggestions = new File(Tuils.getFolder(), "suggestions.xml");
-
         try {
-            if (themeFile.exists()) Tuils.copy(themeFile, currentTheme);
-            if (suggestionsFile.exists()) Tuils.copy(suggestionsFile, currentSuggestions);
-
-            XMLPrefsManager.XMLPrefsRoot.UI.write(Ui.auto_color_pick, "false");
+            PresetManager.apply(name);
 
             Toast.makeText(ThemerActivity.this, "Preset applied! Reloading...", Toast.LENGTH_SHORT).show();
             recyclerView.postDelayed(() -> {
@@ -345,7 +299,7 @@ public class ThemerActivity extends AppCompatActivity {
                 finish();
             }, 500);
         } catch (Exception e) {
-            Toast.makeText(ThemerActivity.this, "Error applying preset", Toast.LENGTH_SHORT).show();
+            Toast.makeText(ThemerActivity.this, e.getMessage(), Toast.LENGTH_SHORT).show();
         }
     }
 

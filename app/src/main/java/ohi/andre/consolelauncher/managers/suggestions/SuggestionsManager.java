@@ -41,6 +41,7 @@ import ohi.andre.consolelauncher.managers.AliasManager;
 import ohi.andre.consolelauncher.managers.AppsManager;
 import ohi.andre.consolelauncher.managers.ContactManager;
 import ohi.andre.consolelauncher.managers.FileManager;
+import ohi.andre.consolelauncher.managers.PresetManager;
 import ohi.andre.consolelauncher.managers.RssManager;
 import ohi.andre.consolelauncher.managers.TerminalManager;
 import ohi.andre.consolelauncher.managers.music.Song;
@@ -792,6 +793,9 @@ public class SuggestionsManager {
             case CommandAbstraction.THEME_PRESET:
                 suggestThemePresets(suggestions, afterLastSpace, beforeLastSpace);
                 break;
+            case CommandAbstraction.PRESET_NAME:
+                suggestSavedPresetNames(suggestions, afterLastSpace, beforeLastSpace);
+                break;
             case CommandAbstraction.TEXTLIST:
                 suggestWebhookHistory(info, suggestions, afterLastSpace, beforeLastSpace);
                 break;
@@ -839,6 +843,15 @@ public class SuggestionsManager {
         for (String p : presets) {
             if (afterLastSpace == null || afterLastSpace.length() == 0 || p.startsWith(afterLastSpace)) {
                 suggestions.add(new Suggestion(beforeLastSpace, p, true, Suggestion.TYPE_PERMANENT));
+            }
+        }
+    }
+
+    private void suggestSavedPresetNames(List<Suggestion> suggestions, String afterLastSpace, String beforeLastSpace) {
+        boolean applyCommand = beforeLastSpace != null && beforeLastSpace.toLowerCase().contains(" -apply");
+        for (String preset : PresetManager.listPresets()) {
+            if (afterLastSpace == null || afterLastSpace.length() == 0 || preset.toLowerCase().startsWith(afterLastSpace.toLowerCase())) {
+                suggestions.add(new Suggestion(beforeLastSpace, preset, applyCommand && clickToLaunch, Suggestion.TYPE_COMMAND));
             }
         }
     }

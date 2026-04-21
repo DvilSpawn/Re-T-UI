@@ -220,8 +220,11 @@
     <string name="help_wallpaper">-static -> open the static wallpaper picker
         \n-live -> open the live wallpaper picker
         \n-auto -> refresh wallpaper-derived theme colors
-        \n-apply -> bake wallpaper colors into your theme and disable auto_color_pick
         \n(no args) -> open the wallpaper picker
+    </string>
+    <string name="help_preset">-save [name] -> save the current theme and suggestion colors as a preset
+        \n-apply [name] -> apply a saved preset and disable auto_color_pick
+        \n-ls -> list saved presets
     </string>
     <string name="help_alias">-add [aliasName] [alias content] -> add a new alias
         \n-rm [aliasName] -> remove an existing alias
