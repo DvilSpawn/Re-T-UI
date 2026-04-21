@@ -34,6 +34,8 @@ import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
+import com.google.firebase.crashlytics.FirebaseCrashlytics;
+
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -190,6 +192,10 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
 
         super.onCreate(savedInstanceState);
 
+        FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
+        crashlytics.setCrashlyticsCollectionEnabled(true);
+        crashlytics.log("LauncherActivity onCreate - Crashlytics initialized");
+
         overridePendingTransition(0, 0);
 
         if (isFinishing()) {
@@ -242,11 +248,7 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
         filter1.addAction(PublicIOReceiver.ACTION_OUTPUT);
 
         publicIOReceiver = new PublicIOReceiver();
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            getApplicationContext().registerReceiver(publicIOReceiver, filter1, "ohi.andre.consolelauncher.permission.RECEIVE_CMD", null, Context.RECEIVER_EXPORTED);
-        } else {
-            getApplicationContext().registerReceiver(publicIOReceiver, filter1, "ohi.andre.consolelauncher.permission.RECEIVE_CMD", null);
-        }
+        ContextCompat.registerReceiver(getApplicationContext(), publicIOReceiver, filter1, "ohi.andre.consolelauncher.permission.RECEIVE_CMD", null, ContextCompat.RECEIVER_EXPORTED);
 
         backButtonEnabled = XMLPrefsManager.getBoolean(Behavior.back_button_enabled);
 

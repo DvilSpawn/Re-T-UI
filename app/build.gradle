@@ -1,6 +1,7 @@
 apply plugin: 'com.android.application'
 apply plugin: 'com.google.gms.google-services'
 apply plugin: 'com.google.firebase.appdistribution'
+apply plugin: 'com.google.firebase.crashlytics'
 
 android {
     namespace "ohi.andre.consolelauncher"
@@ -26,10 +27,10 @@ android {
 
     defaultConfig {
         applicationId "com.dvil.tui_renewed"
-        minSdk 21
+        minSdk 23
         targetSdk 36
-        versionCode 316
-        versionName "v6.16.0-STABLE"
+        versionCode 317
+        versionName "v6.16.1-STABLE"
 
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
     }
@@ -57,7 +58,7 @@ android {
                 serviceCredentialsFile = "/Users/mako/Downloads/t-ui-renewed-firebase-adminsdk-fbsvc-3da60ffd6f.json"
                 artifactType = "APK"
                 testers = "mekiranjayan@gmail.com"
-                releaseNotes = "v6.16.0-STABLE: Added command-first settings and wallpaper controls, wallpaper-derived auto theming refresh, preferred music app selection, and smarter suggestion palette tuning."
+                releaseNotes = "v6.16.1-STABLE: Fixed time not showing in status container."
             }
         }
     }
@@ -83,6 +84,10 @@ android {
 }
 
 dependencies {
+    implementation platform('com.google.firebase:firebase-bom:34.12.0')
+    implementation 'com.google.firebase:firebase-crashlytics'
+    implementation 'com.google.firebase:firebase-analytics'
+
     implementation 'androidx.appcompat:appcompat:1.7.1'
     implementation 'com.google.android.material:material:1.13.0'
     implementation 'androidx.localbroadcastmanager:localbroadcastmanager:1.1.0'

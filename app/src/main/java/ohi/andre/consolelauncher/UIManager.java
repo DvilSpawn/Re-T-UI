@@ -1,5 +1,6 @@
 package ohi.andre.consolelauncher;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.ActivityManager;
 import android.app.KeyguardManager;
@@ -23,6 +24,7 @@ import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
 import android.os.Build;
 import android.os.Handler;
+import androidx.core.content.ContextCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.ColorUtils;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
@@ -625,11 +627,7 @@ public class UIManager implements OnTouchListener {
             rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 350);
             rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 1100);
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
-            context.getApplicationContext().registerReceiver(receiver, filter, Context.RECEIVER_EXPORTED);
-        } else {
-            context.getApplicationContext().registerReceiver(receiver, filter);
-        }
+        ContextCompat.registerReceiver(context.getApplicationContext(), receiver, filter, ContextCompat.RECEIVER_EXPORTED);
 
         policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         component = new ComponentName(context, PolicyReceiver.class);
@@ -698,6 +696,7 @@ public class UIManager implements OnTouchListener {
                 public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                     if (swipeDownNotifications && velocityY > 100 && Math.abs(velocityY) > Math.abs(velocityX)) {
                         try {
+                            @SuppressLint("WrongConstant")
                             Object sbservice = mContext.getSystemService("statusbar");
                             Class<?> statusbarManager = Class.forName("android.app.StatusBarManager");
                             java.lang.reflect.Method expand = statusbarManager.getMethod("expandNotificationsPanel");

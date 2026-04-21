@@ -136,6 +136,8 @@ public class ThemerActivity extends AppCompatActivity {
                             }
                         });
                         builder.show();
+                    } else if (fileName.equals("Presets")) {
+                        showPresetsDialog();
                     } else if (fileName.equals("View Crash Log")) {
                         File crashFile = new File(Tuils.getFolder(), "crash.txt");
                         if (!crashFile.exists() || crashFile.length() == 0) {
@@ -228,6 +230,125 @@ public class ThemerActivity extends AppCompatActivity {
         setContentView(root);
     }
 
+    private void showPresetsDialog() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(ThemerActivity.this);
+        builder.setTitle("Presets");
+        String[] options = {"Save Current as Preset", "Apply Preset"};
+        builder.setItems(options, (dialog, which) -> {
+            if (which == 0) {
+                // Save
+                EditText input = new EditText(ThemerActivity.this);
+                input.setHint("Preset Name");
+                input.setTextColor(Color.WHITE);
+                input.setHintTextColor(Color.GRAY);
+                new AlertDialog.Builder(ThemerActivity.this)
+                        .setTitle("Save Preset")
+                        .setView(input)
+                        .setPositiveButton("Save", (d, w) -> {
+                            String name = input.getText().toString().trim();
+                            if (name.length() > 0) {
+                                savePreset(name);
+                            }
+                        })
+                        .setNegativeButton("Cancel", null)
+                        .show();
+            } else {
+                // Apply
+                File presetsDir = new File(Tuils.getFolder(), "presets");
+                if (!presetsDir.exists()) presetsDir.mkdirs();
+                File[] presets = presetsDir.listFiles(File::isDirectory);
+                if (presets == null || presets.length == 0) {
+                    Toast.makeText(ThemerActivity.this, "No presets found.", Toast.LENGTH_SHORT).show();
+                    return;
+                }
+                String[] presetNames = new String[presets.length];
+                for (int i = 0; i < presets.length; i++) presetNames[i] = presets[i].getName();
+
+                new AlertDialog.Builder(ThemerActivity.this)
+                        .setTitle("Select Preset")
+                        .setItems(presetNames, (d, w) -> {
+                            applyPreset(presetNames[w]);
+                        })
+                        .show();
+            }
+        });
+        builder.show();
+    }
+
+    private void savePreset(String name) {
+        File presetsDir = new File(Tuils.getFolder(), "presets");
+        if (!presetsDir.exists()) presetsDir.mkdirs();
+
+        File presetFolder = new File(presetsDir, name);
+        if (!presetFolder.exists()) presetFolder.mkdirs();
+
+        File themeFile = new File(presetFolder, "theme.xml");
+        File suggestionsFile = new File(presetFolder, "suggestions.xml");
+
+        if (XMLPrefsManager.getBoolean(Ui.auto_color_pick)) {
+            StringBuilder themeXml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<THEME>\n");
+            for (ohi.andre.consolelauncher.managers.xml.options.Theme theme : ohi.andre.consolelauncher.managers.xml.options.Theme.values()) {
+                int color = AutoColorManager.getAutoColor(theme, Integer.MAX_VALUE);
+                if (color != Integer.MAX_VALUE) {
+                    themeXml.append("\t<").append(theme.label()).append(" value=\"").append(String.format("#%08X", color)).append("\" />\n");
+                } else {
+                    themeXml.append("\t<").append(theme.label()).append(" value=\"").append(theme.defaultValue()).append("\" />\n");
+                }
+            }
+            themeXml.append("</THEME>");
+
+            StringBuilder suggXml = new StringBuilder("<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<SUGGESTIONS>\n");
+            for (ohi.andre.consolelauncher.managers.xml.options.Suggestions suggestion : ohi.andre.consolelauncher.managers.xml.options.Suggestions.values()) {
+                int color = AutoColorManager.getAutoColor(suggestion, Integer.MAX_VALUE);
+                if (color != Integer.MAX_VALUE) {
+                    suggXml.append("\t<").append(suggestion.label()).append(" value=\"").append(String.format("#%08X", color)).append("\" />\n");
+                } else {
+                    suggXml.append("\t<").append(suggestion.label()).append(" value=\"").append(suggestion.defaultValue()).append("\" />\n");
+                }
+            }
+            suggXml.append("</SUGGESTIONS>");
+
+            try {
+                Tuils.write(themeFile, themeXml.toString());
+                Tuils.write(suggestionsFile, suggXml.toString());
+            } catch (Exception e) {}
+        } else {
+            File currentTheme = new File(Tuils.getFolder(), "theme.xml");
+            File currentSuggestions = new File(Tuils.getFolder(), "suggestions.xml");
+            try {
+                if (currentTheme.exists()) Tuils.copy(currentTheme, themeFile);
+                if (currentSuggestions.exists()) Tuils.copy(currentSuggestions, suggestionsFile);
+            } catch (Exception e) {}
+        }
+        Toast.makeText(ThemerActivity.this, "Preset saved!", Toast.LENGTH_SHORT).show();
+    }
+
+    private void applyPreset(String name) {
+        File presetFolder = new File(Tuils.getFolder(), "presets/" + name);
+        File themeFile = new File(presetFolder, "theme.xml");
+        File suggestionsFile = new File(presetFolder, "suggestions.xml");
+
+        File currentTheme = new File(Tuils.getFolder(), "theme.xml");
+        File currentSuggestions = new File(Tuils.getFolder(), "suggestions.xml");
+
+        try {
+            if (themeFile.exists()) Tuils.copy(themeFile, currentTheme);
+            if (suggestionsFile.exists()) Tuils.copy(suggestionsFile, currentSuggestions);
+
+            XMLPrefsManager.XMLPrefsRoot.UI.write(Ui.auto_color_pick, "false");
+
+            Toast.makeText(ThemerActivity.this, "Preset applied! Reloading...", Toast.LENGTH_SHORT).show();
+            recyclerView.postDelayed(() -> {
+                if (LauncherActivity.instance != null) {
+                    LauncherActivity.instance.reload();
+                }
+                finish();
+            }, 500);
+        } catch (Exception e) {
+            Toast.makeText(ThemerActivity.this, "Error applying preset", Toast.LENGTH_SHORT).show();
+        }
+    }
+
     private String getHeaderText(String section) {
         if (SECTION_APPEARANCE.equals(section)) {
             return "Re:T-UI Appearance Settings";
@@ -251,6 +372,7 @@ public class ThemerActivity extends AppCompatActivity {
                     "toolbar.xml",
                     "suggestions.xml",
                     "Fonts",
+                    "Presets",
                     "Open Wallpaper Picker",
                     "Open Live Wallpaper Picker"
             );

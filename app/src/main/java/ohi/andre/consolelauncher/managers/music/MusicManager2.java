@@ -11,6 +11,8 @@ import android.database.Cursor;
 import android.media.AudioManager;
 import android.net.Uri;
 import android.os.Build;
+
+import androidx.core.content.ContextCompat;
 import android.os.IBinder;
 import android.provider.MediaStore;
 import android.widget.MediaController;
@@ -108,7 +110,7 @@ public class MusicManager2 implements MediaController.MediaPlayerControl {
             action = Intent.ACTION_HEADSET_PLUG;
         }
 
-        mContext.getApplicationContext().registerReceiver(headsetBroadcast, new IntentFilter(action));
+        ContextCompat.registerReceiver(mContext.getApplicationContext(), headsetBroadcast, new IntentFilter(action), ContextCompat.RECEIVER_EXPORTED);
         headsetReceiverRegistered = true;
     }
 

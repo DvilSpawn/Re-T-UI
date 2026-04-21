@@ -1,5 +1,6 @@
 package ohi.andre.consolelauncher.tuils;
 
+import android.annotation.SuppressLint;
 import android.annotation.TargetApi;
 import android.app.ActivityManager;
 import android.app.ActivityManager.MemoryInfo;
@@ -30,6 +31,7 @@ import android.os.Parcelable;
 import android.os.Process;
 import android.os.StatFs;
 import android.provider.Settings;
+import androidx.core.content.ContextCompat;
 import androidx.core.content.FileProvider;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import android.telephony.TelephonyManager;
@@ -339,7 +341,7 @@ public class Tuils {
             iFilter.addAction(Intent.ACTION_POWER_CONNECTED);
             iFilter.addAction(Intent.ACTION_POWER_DISCONNECTED);
 
-            context.registerReceiver(batteryReceiver, iFilter);
+            ContextCompat.registerReceiver(context, batteryReceiver, iFilter, ContextCompat.RECEIVER_NOT_EXPORTED);
 
             batteryUpdate = listener;
         } catch (Exception e) {
@@ -1158,7 +1160,7 @@ public class Tuils {
     }
 
     public static String toPlanString(List<String> strings, String separator) {
-        return TextUtils.toPlanString(strings, separator);
+        return ohi.andre.consolelauncher.tuils.TextUtils.toPlanString(strings, separator);
     }
 
     public static String filesToPlanString(List<File> files, String separator) {
@@ -1182,12 +1184,12 @@ public class Tuils {
     }
 
     public static String toPlanString(Object[] objs, String separator) {
-        return TextUtils.toPlanString(objs, separator);
+        return ohi.andre.consolelauncher.tuils.TextUtils.toPlanString(objs, separator);
     }
 
     static Pattern unnecessarySpaces = Pattern.compile("\\s{2,}");
     public static String removeUnncesarySpaces(String string) {
-        return TextUtils.removeUnncesarySpaces(string);
+        return ohi.andre.consolelauncher.tuils.TextUtils.removeUnncesarySpaces(string);
     }
 
     public static List<String> splitArgs(String input) {
@@ -1496,7 +1498,15 @@ public class Tuils {
         return NetUtils.getNetworkType(context);
     }
 
+    @SuppressLint("SoonBlockedPrivateApi")
     public static void setCursorDrawableColor(EditText editText, int color) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            editText.setTextCursorDrawable(editText.getTextCursorDrawable());
+            if (editText.getTextCursorDrawable() != null) {
+                editText.getTextCursorDrawable().setColorFilter(color, PorterDuff.Mode.SRC_IN);
+            }
+            return;
+        }
         try {
             Field fCursorDrawableRes = TextView.class.getDeclaredField("mCursorDrawableRes");
             fCursorDrawableRes.setAccessible(true);

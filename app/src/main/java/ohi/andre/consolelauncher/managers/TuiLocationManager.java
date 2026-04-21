@@ -173,12 +173,18 @@ public class TuiLocationManager {
         actionsPool.remove(action);
     }
 
+    @SuppressLint("MissingPermission")
     private void dispose() {
         actionsPool.clear();
         LocalBroadcastManager.getInstance(context.getApplicationContext()).unregisterReceiver(receiver);
 
         LocationManager manager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
-        if(manager != null) manager.removeUpdates(locationListener);
+        if(manager != null) {
+            if (ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                    ActivityCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+                manager.removeUpdates(locationListener);
+            }
+        }
 
         clearHandler();
     }

@@ -92,11 +92,16 @@ public class ContactManager {
                     String name = null, number;
                     int id, prim;
 
-                    while (phones.moveToNext()) {
-                        id = phones.getInt(phones.getColumnIndex(ContactsContract.Data.CONTACT_ID));
-                        number = phones.getString(phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+                    int contactIdIndex = phones.getColumnIndex(ContactsContract.Data.CONTACT_ID);
+                    int numberIndex = phones.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+                    int isSuperPrimaryIndex = phones.getColumnIndex(ContactsContract.Data.IS_SUPER_PRIMARY);
+                    int displayNameIndex = phones.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME);
 
-                        prim = phones.getInt(phones.getColumnIndex(ContactsContract.Data.IS_SUPER_PRIMARY));
+                    while (phones.moveToNext()) {
+                        id = contactIdIndex != -1 ? phones.getInt(contactIdIndex) : -1;
+                        number = numberIndex != -1 ? phones.getString(numberIndex) : null;
+
+                        prim = isSuperPrimaryIndex != -1 ? phones.getInt(isSuperPrimaryIndex) : 0;
                         if(prim > 0) {
                             defaultNumber = lastNumbers.size();
                         }
@@ -105,7 +110,7 @@ public class ContactManager {
 
                         if(phones.isFirst()) {
                             lastId = id;
-                            name = phones.getString(phones.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
+                            name = displayNameIndex != -1 ? phones.getString(displayNameIndex) : null;
                         } else if(id != lastId || phones.isLast()) {
                             lastId = id;
 
@@ -116,7 +121,7 @@ public class ContactManager {
                             name = null;
                             defaultNumber = 0;
 
-                            name = phones.getString(phones.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
+                            name = displayNameIndex != -1 ? phones.getString(displayNameIndex) : null;
                         }
 
                         String normalized = number.replaceAll(Tuils.SPACE, Tuils.EMPTYSTRING);
@@ -198,7 +203,8 @@ public class ContactManager {
 
         mCursor.moveToNext();
 
-        String id = mCursor.getString(mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID));
+        int contactIdIndex = mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.CONTACT_ID);
+        String id = contactIdIndex != -1 ? mCursor.getString(contactIdIndex) : null;
         about[CONTACT_ID] = id;
 
         mCursor.close();
@@ -211,19 +217,24 @@ public class ContactManager {
         if(mCursor == null || mCursor.getCount() == 0) return null;
         mCursor.moveToNext();
 
-        about[NAME] = mCursor.getString(mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME));
+        int displayNameIndex = mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+        int timesContactedIndex = mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TIMES_CONTACTED);
+        int lastTimeContactedIndex = mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.LAST_TIME_CONTACTED);
+        int numberIndex = mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER);
+
+        about[NAME] = displayNameIndex != -1 ? mCursor.getString(displayNameIndex) : null;
         about[NUMBERS] = new String(Tuils.EMPTYSTRING);
 
         int timesContacted = -1;
         long lastContacted = Long.MAX_VALUE;
         do {
-            int tempT = mCursor.getInt(mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.TIMES_CONTACTED));
-            long tempL = mCursor.getLong(mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.LAST_TIME_CONTACTED));
+            int tempT = timesContactedIndex != -1 ? mCursor.getInt(timesContactedIndex) : 0;
+            long tempL = lastTimeContactedIndex != -1 ? mCursor.getLong(lastTimeContactedIndex) : 0;
 
             timesContacted = tempT > timesContacted ? tempT : timesContacted;
             if(tempL > 0) lastContacted = tempL < lastContacted ? tempL : lastContacted;
 
-            String n = mCursor.getString(mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
+            String n = numberIndex != -1 ? mCursor.getString(numberIndex) : null;
             about[NUMBERS] = (about[NUMBERS].length() > 0 ? about[NUMBERS] + Tuils.NEWLINE : Tuils.EMPTYSTRING) + n;
         } while (mCursor.moveToNext());
 
@@ -281,7 +292,8 @@ public class ContactManager {
         if(mCursor == null || mCursor.getCount() == 0) return null;
         mCursor.moveToNext();
 
-        String name = mCursor.getString(mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME));
+        int displayNameIndex = mCursor.getColumnIndex(ContactsContract.CommonDataKinds.Phone.DISPLAY_NAME);
+        String name = displayNameIndex != -1 ? mCursor.getString(displayNameIndex) : null;
         mCursor.close();
 
         mCursor = context.getContentResolver().query(ContactsContract.Contacts.CONTENT_URI,
@@ -292,8 +304,11 @@ public class ContactManager {
         if(mCursor == null || mCursor.getCount() == 0) return null;
         mCursor.moveToNext();
 
-        String mCurrentLookupKey = mCursor.getString(mCursor.getColumnIndex(ContactsContract.Contacts.LOOKUP_KEY));
-        long mCurrentId = mCursor.getLong(mCursor.getColumnIndex(ContactsContract.Contacts._ID));
+        int lookupKeyIndex = mCursor.getColumnIndex(ContactsContract.Contacts.LOOKUP_KEY);
+        int idIndex = mCursor.getColumnIndex(ContactsContract.Contacts._ID);
+
+        String mCurrentLookupKey = lookupKeyIndex != -1 ? mCursor.getString(lookupKeyIndex) : null;
+        long mCurrentId = idIndex != -1 ? mCursor.getLong(idIndex) : -1;
 
         mCursor.close();
 

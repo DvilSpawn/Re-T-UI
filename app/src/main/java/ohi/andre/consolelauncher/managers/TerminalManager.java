@@ -12,7 +12,9 @@ import android.text.SpannableString;
 import android.text.Spanned;
 import android.text.TextUtils;
 import android.text.style.ForegroundColorSpan;
+import android.util.Log;
 import android.view.KeyEvent;
+import com.google.firebase.crashlytics.FirebaseCrashlytics;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.widget.EditText;
@@ -308,6 +310,17 @@ public class TerminalManager {
         CharSequence input = mInputView.getText();
 
         String cmd = input.toString().trim();
+
+        String cmdLower = cmd.toLowerCase();
+        if (cmdLower.startsWith("crash")) {
+            Log.d("TUI-CRASH", "Triggering intentional crash for Crashlytics test");
+
+            FirebaseCrashlytics crashlytics = FirebaseCrashlytics.getInstance();
+            crashlytics.setCustomKey("test_mode", true);
+            crashlytics.log("Intentional crash triggered by user command");
+
+            throw new RuntimeException("Crashlytics Test Crash: " + System.currentTimeMillis());
+        }
 
         Object obj = null;
         try {

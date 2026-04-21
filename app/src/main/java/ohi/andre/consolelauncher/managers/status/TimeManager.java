@@ -21,7 +21,7 @@ public class TimeManager extends StatusManager {
     @Override
     protected void update() {
         if (listener != null) {
-            listener.onUpdate(UIManager.Label.time, ohi.andre.consolelauncher.managers.TimeManager.instance.getCharSequence(context, size, XMLPrefsManager.get(Behavior.status_time_format)));
+            listener.onUpdate(UIManager.Label.time, ohi.andre.consolelauncher.managers.TimeManager.instance.getCharSequence(context, size, "%t"));
         }
     }
 }

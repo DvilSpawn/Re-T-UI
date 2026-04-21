@@ -42,8 +42,6 @@ public class TimeManager {
 
         outputDateFormatList = createList(context, XMLPrefsManager.get(Behavior.output_time_format), separator);
         statusDateFormatList = createList(context, XMLPrefsManager.get(Behavior.status_time_format), separator);
-
-        instance = this;
     }
 
     private FormatEntry[] createList(Context context, String format, String separator) {

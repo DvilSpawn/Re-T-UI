@@ -9,6 +9,7 @@ import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.os.Build;
 
+import androidx.annotation.RequiresApi;
 import androidx.core.graphics.ColorUtils;
 
 import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsSave;
@@ -36,7 +37,14 @@ public final class AutoColorManager {
     }
 
     public static int getColor(XMLPrefsSave prefsSave, int fallbackColor) {
-        if (prefsSave == null || appContext == null || !XMLPrefsManager.getBoolean(Ui.auto_color_pick)) {
+        if (!XMLPrefsManager.getBoolean(Ui.auto_color_pick)) {
+            return fallbackColor;
+        }
+        return getAutoColor(prefsSave, fallbackColor);
+    }
+
+    public static int getAutoColor(XMLPrefsSave prefsSave, int fallbackColor) {
+        if (prefsSave == null || appContext == null) {
             return fallbackColor;
         }
 
@@ -88,6 +96,7 @@ public final class AutoColorManager {
         }
     }
 
+    @RequiresApi(api = Build.VERSION_CODES.O_MR1)
     private static Palette buildFromWallpaperColors(WallpaperColors colors) {
         int primary = colors.getPrimaryColor() != null ? colors.getPrimaryColor().toArgb() : Color.BLACK;
         int secondary = colors.getSecondaryColor() != null ? colors.getSecondaryColor().toArgb() : primary;
