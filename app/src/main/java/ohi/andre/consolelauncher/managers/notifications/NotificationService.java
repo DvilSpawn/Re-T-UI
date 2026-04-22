@@ -47,6 +47,7 @@ import ohi.andre.consolelauncher.managers.TimeManager;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 import ohi.andre.consolelauncher.managers.music.MusicService;
 import ohi.andre.consolelauncher.managers.notifications.reply.ReplyManager;
+import ohi.andre.consolelauncher.managers.settings.LauncherSettings;
 import ohi.andre.consolelauncher.managers.settings.MusicSettings;
 import ohi.andre.consolelauncher.managers.settings.NotificationSettings;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
@@ -453,6 +454,7 @@ public class NotificationService extends NotificationListenerService {
             Tuils.init(this);
             notificationManager = NotificationManager.create(this);
             XMLPrefsManager.loadCommons(this);
+            LauncherSettings.refreshFromLoadedPrefs();
         } catch (Exception e) {
             Tuils.log(e);
             return;

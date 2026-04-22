@@ -21,6 +21,7 @@ import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 
+import ohi.andre.consolelauncher.managers.settings.LauncherSettings;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsSave;
 import ohi.andre.consolelauncher.tuils.interfaces.Reloadable;
@@ -124,6 +125,9 @@ public class TuixtActivity extends Activity {
             } else if (plainTextEditor != null) {
                 try {
                     ohi.andre.consolelauncher.tuils.Tuils.write(file, "", plainTextEditor.getText().toString());
+                    XMLPrefsManager.dispose();
+                    XMLPrefsManager.loadCommons(this);
+                    LauncherSettings.refreshFromLoadedPrefs();
                 } catch (Exception e) {
                     Toast.makeText(this, "Error saving: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 }

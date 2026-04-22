@@ -167,6 +167,7 @@ public class Tuils {
 
             try {
                 XMLPrefsManager.loadCommons(context);
+                LauncherSettings.refreshFromLoadedPrefs();
                 prefsLoaded = true;
                 systemFont = AppearanceSettings.useSystemFont();
                 configuredFont = AppearanceSettings.fontFile();

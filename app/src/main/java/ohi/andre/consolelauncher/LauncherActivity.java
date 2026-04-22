@@ -52,6 +52,7 @@ import ohi.andre.consolelauncher.managers.notifications.KeeperService;
 import ohi.andre.consolelauncher.managers.notifications.NotificationManager;
 import ohi.andre.consolelauncher.managers.notifications.NotificationMonitorService;
 import ohi.andre.consolelauncher.managers.notifications.NotificationService;
+import ohi.andre.consolelauncher.managers.settings.LauncherSettings;
 import ohi.andre.consolelauncher.managers.settings.NotificationSettings;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.options.Behavior;
@@ -179,6 +180,7 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
         }
 
         XMLPrefsManager.loadCommons(this);
+        LauncherSettings.refreshFromLoadedPrefs();
 
         boolean useSystemWP = XMLPrefsManager.getBoolean(Ui.system_wallpaper);
         if (useSystemWP) {
@@ -450,6 +452,7 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
 
     public void reload() {
         XMLPrefsManager.dispose();
+        LauncherSettings.invalidate();
         Tuils.cancelFont();
         Intent intent = getIntent();
         finish();

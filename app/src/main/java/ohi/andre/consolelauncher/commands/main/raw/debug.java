@@ -22,30 +22,13 @@ public class debug extends ParamCommand {
         theme {
             @Override
             public String exec(ExecutePack pack) {
-                StringBuilder output = new StringBuilder();
-                output.append("Theme source").append(Tuils.NEWLINE);
-                output.append("auto_color_pick: ").append(AppearanceSettings.autoColorPick()).append(Tuils.NEWLINE);
-                output.append("system_wallpaper: ").append(LauncherSettings.getBoolean(Ui.system_wallpaper)).append(Tuils.NEWLINE);
-                output.append("system_font: ").append(AppearanceSettings.useSystemFont()).append(Tuils.NEWLINE);
-                output.append("font_file: ").append(AppearanceSettings.fontFile()).append(Tuils.NEWLINE);
-                output.append("notification_terminal: ").append(NotificationSettings.showTerminal()).append(Tuils.NEWLINE);
-                output.append("notification_output: ").append(NotificationSettings.printToOutput()).append(Tuils.NEWLINE);
-                output.append("music_enabled: ").append(MusicSettings.enabled()).append(Tuils.NEWLINE);
-                output.append("music_widget: ").append(MusicSettings.showWidget()).append(Tuils.NEWLINE);
-                output.append("music_preferred_package: ").append(MusicSettings.preferredPackage()).append(Tuils.NEWLINE);
-                output.append(Tuils.NEWLINE);
-                output.append("Effective colors").append(Tuils.NEWLINE);
-                appendValue(output, Theme.bg_color);
-                appendValue(output, Theme.overlay_color);
-                appendValue(output, Theme.input_color);
-                appendValue(output, Theme.output_color);
-                appendValue(output, Theme.apps_drawer_color);
-                appendValue(output, Theme.music_widget_color);
-                appendValue(output, Suggestions.apps_bg_color);
-                appendValue(output, Suggestions.alias_bg_color);
-                appendValue(output, Suggestions.cmd_bg_color);
-                appendValue(output, Suggestions.contact_bg_color);
-                return output.toString();
+                return buildSettingsOutput().toString();
+            }
+        },
+        settings {
+            @Override
+            public String exec(ExecutePack pack) {
+                return buildSettingsOutput().toString();
             }
         },
         presets {
@@ -123,6 +106,34 @@ public class debug extends ParamCommand {
     @Override
     protected String doThings(ExecutePack pack) {
         return pack.context.getString(R.string.help_debug);
+    }
+
+    private static StringBuilder buildSettingsOutput() {
+        StringBuilder output = new StringBuilder();
+        output.append("Runtime settings").append(Tuils.NEWLINE);
+        output.append(LauncherSettings.debugSummary()).append(Tuils.NEWLINE);
+        output.append("auto_color_pick: ").append(AppearanceSettings.autoColorPick()).append(Tuils.NEWLINE);
+        output.append("system_wallpaper: ").append(LauncherSettings.getBoolean(Ui.system_wallpaper)).append(Tuils.NEWLINE);
+        output.append("system_font: ").append(AppearanceSettings.useSystemFont()).append(Tuils.NEWLINE);
+        output.append("font_file: ").append(AppearanceSettings.fontFile()).append(Tuils.NEWLINE);
+        output.append("notification_terminal: ").append(NotificationSettings.showTerminal()).append(Tuils.NEWLINE);
+        output.append("notification_output: ").append(NotificationSettings.printToOutput()).append(Tuils.NEWLINE);
+        output.append("music_enabled: ").append(MusicSettings.enabled()).append(Tuils.NEWLINE);
+        output.append("music_widget: ").append(MusicSettings.showWidget()).append(Tuils.NEWLINE);
+        output.append("music_preferred_package: ").append(MusicSettings.preferredPackage()).append(Tuils.NEWLINE);
+        output.append(Tuils.NEWLINE);
+        output.append("Effective colors").append(Tuils.NEWLINE);
+        appendValue(output, Theme.bg_color);
+        appendValue(output, Theme.overlay_color);
+        appendValue(output, Theme.input_color);
+        appendValue(output, Theme.output_color);
+        appendValue(output, Theme.apps_drawer_color);
+        appendValue(output, Theme.music_widget_color);
+        appendValue(output, Suggestions.apps_bg_color);
+        appendValue(output, Suggestions.alias_bg_color);
+        appendValue(output, Suggestions.cmd_bg_color);
+        appendValue(output, Suggestions.contact_bg_color);
+        return output;
     }
 
     private static void appendValue(StringBuilder output, ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsSave value) {
