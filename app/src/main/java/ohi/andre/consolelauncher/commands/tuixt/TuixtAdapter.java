@@ -19,8 +19,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import ohi.andre.consolelauncher.R;
+import ohi.andre.consolelauncher.managers.settings.LauncherSettings;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
-import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsElement;
 import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsSave;
 
 public class TuixtAdapter extends RecyclerView.Adapter<TuixtAdapter.ViewHolder> {
@@ -43,10 +43,7 @@ public class TuixtAdapter extends RecyclerView.Adapter<TuixtAdapter.ViewHolder> 
         for (Map.Entry<XMLPrefsSave, String> entry : pendingChanges.entrySet()) {
             XMLPrefsSave item = entry.getKey();
             String value = entry.getValue();
-            XMLPrefsElement parent = item.parent();
-            if (parent != null) {
-                parent.write(item, value);
-            }
+            LauncherSettings.set(item, value);
         }
     }
 

@@ -1,10 +1,16 @@
 package ohi.andre.consolelauncher.managers.settings;
 
+import android.content.Context;
+
 import java.util.Locale;
 
+import ohi.andre.consolelauncher.managers.notifications.NotificationService;
 import ohi.andre.consolelauncher.managers.xml.AutoColorManager;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
+import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsElement;
 import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsSave;
+import ohi.andre.consolelauncher.managers.xml.options.Behavior;
+import ohi.andre.consolelauncher.managers.xml.options.Notifications;
 import ohi.andre.consolelauncher.managers.xml.options.Suggestions;
 import ohi.andre.consolelauncher.managers.xml.options.Theme;
 import ohi.andre.consolelauncher.managers.xml.options.Ui;
@@ -23,19 +29,34 @@ public final class LauncherSettings {
         return XMLPrefsManager.getBoolean(value);
     }
 
+    public static void set(XMLPrefsSave value, String rawValue) {
+        set(null, value, rawValue);
+    }
+
+    public static void set(Context context, XMLPrefsSave value, String rawValue) {
+        if (value == null) {
+            return;
+        }
+
+        XMLPrefsElement parent = value.parent();
+        if (parent == null) {
+            return;
+        }
+
+        parent.write(value, rawValue);
+        onSettingChanged(context, value);
+    }
+
     public static void setTheme(Theme value, String rawValue) {
-        write(XMLPrefsManager.XMLPrefsRoot.THEME, value, rawValue);
+        set(value, rawValue);
     }
 
     public static void setSuggestion(Suggestions value, String rawValue) {
-        write(XMLPrefsManager.XMLPrefsRoot.SUGGESTIONS, value, rawValue);
+        set(value, rawValue);
     }
 
     public static void setUi(Ui value, String rawValue) {
-        write(XMLPrefsManager.XMLPrefsRoot.UI, value, rawValue);
-        if (value == Ui.auto_color_pick) {
-            AutoColorManager.invalidate();
-        }
+        set(value, rawValue);
     }
 
     public static void setAutoColorPick(boolean enabled) {
@@ -57,7 +78,17 @@ public final class LauncherSettings {
         return current;
     }
 
-    private static void write(XMLPrefsManager.XMLPrefsRoot root, XMLPrefsSave value, String rawValue) {
-        root.write(value, rawValue);
+    private static void onSettingChanged(Context context, XMLPrefsSave value) {
+        if (value == Ui.auto_color_pick) {
+            AutoColorManager.invalidate();
+        }
+
+        if (context == null) {
+            return;
+        }
+
+        if (value instanceof Notifications || value == Behavior.preferred_music_app) {
+            NotificationService.requestReload(context);
+        }
     }
 }

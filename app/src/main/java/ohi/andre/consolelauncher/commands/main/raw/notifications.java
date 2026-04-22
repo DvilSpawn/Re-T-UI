@@ -12,6 +12,7 @@ import ohi.andre.consolelauncher.commands.main.specific.APICommand;
 import ohi.andre.consolelauncher.commands.main.specific.ParamCommand;
 import ohi.andre.consolelauncher.managers.notifications.NotificationManager;
 import ohi.andre.consolelauncher.managers.notifications.NotificationService;
+import ohi.andre.consolelauncher.managers.settings.LauncherSettings;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.options.Notifications;
 import ohi.andre.consolelauncher.tuils.Tuils;
@@ -302,8 +303,7 @@ public class notifications extends ParamCommand implements APICommand {
     }
 
     private static String setNotificationTerminal(ExecutePack pack, boolean enabled) {
-        XMLPrefsManager.XMLPrefsRoot.NOTIFICATIONS.write(Notifications.show_notifications, String.valueOf(enabled));
-        NotificationService.requestReload(pack.context);
+        LauncherSettings.set(pack.context, Notifications.show_notifications, String.valueOf(enabled));
 
         if (pack.context instanceof Reloadable) {
             ((Reloadable) pack.context).addMessage("notifications", enabled ? "Notification terminal enabled" : "Notification terminal disabled");

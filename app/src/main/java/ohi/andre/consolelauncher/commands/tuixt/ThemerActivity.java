@@ -411,11 +411,11 @@ public class ThemerActivity extends AppCompatActivity {
         builder.setTitle("Preferred Music App");
         builder.setItems(labels.toArray(new String[0]), (dialog, which) -> {
             if (which == 0) {
-                XMLPrefsManager.XMLPrefsRoot.BEHAVIOR.write(Behavior.preferred_music_app, Tuils.EMPTYSTRING);
+                LauncherSettings.set(this, Behavior.preferred_music_app, Tuils.EMPTYSTRING);
                 Toast.makeText(this, "Preferred music app reset to automatic detection.", Toast.LENGTH_SHORT).show();
             } else {
                 AppChoice choice = choices.get(which - 1);
-                XMLPrefsManager.XMLPrefsRoot.BEHAVIOR.write(Behavior.preferred_music_app, choice.packageName);
+                LauncherSettings.set(this, Behavior.preferred_music_app, choice.packageName);
                 Toast.makeText(this, "Preferred music app set to " + choice.label + ".", Toast.LENGTH_SHORT).show();
             }
             recreate();

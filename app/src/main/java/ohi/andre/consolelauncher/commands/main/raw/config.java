@@ -16,8 +16,8 @@ import ohi.andre.consolelauncher.commands.main.specific.ParamCommand;
 import ohi.andre.consolelauncher.managers.AppsManager;
 import ohi.andre.consolelauncher.managers.RssManager;
 import ohi.andre.consolelauncher.managers.notifications.NotificationManager;
+import ohi.andre.consolelauncher.managers.settings.LauncherSettings;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
-import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsElement;
 import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsSave;
 import ohi.andre.consolelauncher.managers.xml.options.Apps;
 import ohi.andre.consolelauncher.managers.xml.options.Behavior;
@@ -47,7 +47,7 @@ public class config extends ParamCommand {
             public String exec(ExecutePack pack) {
                 XMLPrefsSave save = pack.getPrefsSave();
                 String value = pack.getString();
-                save.parent().write(save, value);
+                LauncherSettings.set(pack.context, save, value);
 
                 ((Reloadable) pack.context).addMessage(save.parent().path(), save.label() + " -> " + value);
 
@@ -59,11 +59,8 @@ public class config extends ParamCommand {
                             .putLong(UIManager.NEXT_UNLOCK_CYCLE_RESTART, 0)
                             .putInt(UIManager.UNLOCK_KEY, 0)
                             .apply();
-                } else if (save instanceof Notifications) {
-                    ohi.andre.consolelauncher.managers.notifications.NotificationService.requestReload(pack.context);
-                    if (save == Notifications.show_notifications) {
-                        ((Reloadable) pack.context).reload();
-                    }
+                } else if(save == Notifications.show_notifications) {
+                    ((Reloadable) pack.context).reload();
                 }
 
                 return null;
@@ -129,7 +126,7 @@ public class config extends ParamCommand {
                 XMLPrefsSave save = pack.getPrefsSave();
                 String value = XMLPrefsManager.get(save) + pack.getString();
 
-                save.parent().write(save, value);
+                LauncherSettings.set(pack.context, save, value);
 
                 ((Reloadable) pack.context).addMessage(save.parent().path(), save.label() + " -> " + value);
 
@@ -151,7 +148,7 @@ public class config extends ParamCommand {
             @Override
             public String exec(ExecutePack pack) {
                 XMLPrefsSave save = pack.getPrefsSave();
-                save.parent().write(save, Tuils.EMPTYSTRING);
+                LauncherSettings.set(pack.context, save, Tuils.EMPTYSTRING);
 
                 ((Reloadable) pack.context).addMessage(save.parent().path(), save.label() + " -> " + "\"\"");
 
@@ -255,20 +252,18 @@ public class config extends ParamCommand {
 
             @Override
             public String exec(ExecutePack pack) {
-                XMLPrefsElement parent = Ui.device_size.parent();
-
                 int size = pack.getInt();
 
-                parent.write(Ui.device_size, String.valueOf(size));
-                parent.write(Ui.ram_size, String.valueOf(size));
-                parent.write(Ui.network_size, String.valueOf(size));
-                parent.write(Ui.storage_size, String.valueOf(size));
-                parent.write(Ui.battery_size, String.valueOf(size));
-                parent.write(Ui.notes_size, String.valueOf(size));
-                parent.write(Ui.time_size, String.valueOf(size));
-                parent.write(Ui.weather_size, String.valueOf(size));
-                parent.write(Ui.unlock_size, String.valueOf(size));
-                parent.write(Ui.input_output_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.device_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.ram_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.network_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.storage_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.battery_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.notes_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.time_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.weather_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.unlock_size, String.valueOf(size));
+                LauncherSettings.set(pack.context, Ui.input_output_size, String.valueOf(size));
 
                 return null;
             }
@@ -282,7 +277,7 @@ public class config extends ParamCommand {
             @Override
             public String exec(ExecutePack pack) {
                 XMLPrefsSave save = pack.getPrefsSave();
-                save.parent().write(save, save.defaultValue());
+                LauncherSettings.set(pack.context, save, save.defaultValue());
 
                 ((Reloadable) pack.context).addMessage(save.parent().path(), save.label() + " -> " + save.defaultValue());
 
