@@ -15,6 +15,7 @@ This wiki is organized like the original upstream docs, but rebuilt around the c
 ## Reference and Guides
 
 - [Command Reference](./Command-Reference.md)
+- [Aliases](./Aliases.md)
 - [Migration Guide](./Migration-Guide.md)
 - [Preset Sharing](./Preset-Sharing.md)
 - [FAQ and Troubleshooting](./FAQ-and-Troubleshooting.md)

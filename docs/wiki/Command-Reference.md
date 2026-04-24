@@ -173,6 +173,19 @@ Change the terminal identity shown in the prompt.
 
 This is one of the fastest ways to make the launcher feel like yours.
 
+### `alias`
+
+Create and manage custom shortcut commands.
+
+Common commands:
+
+- `alias -add <name> <command content>`
+- `alias -rm <name>`
+- `alias -ls`
+- `alias -file`
+
+Aliases are one of the best ways to make Re:T-UI feel personal without giving up the command-line identity.
+
 ## Automation and Web
 
 ### `webhook`
@@ -236,6 +249,7 @@ If you only memorize a handful of commands, make it these:
 - `wallpaper -auto`
 - `preset -save <name>`
 - `preset -apply <name>`
+- `alias -add <name> <command>`
 - `notifications -access`
 - `apps -ls`
 - `restart`
