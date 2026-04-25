@@ -1,107 +1,49 @@
 package ohi.andre.consolelauncher.commands.main.raw;
 
 import ohi.andre.consolelauncher.R;
+import ohi.andre.consolelauncher.commands.CommandAbstraction;
 import ohi.andre.consolelauncher.commands.ExecutePack;
-import ohi.andre.consolelauncher.commands.main.MainPack;
-import ohi.andre.consolelauncher.commands.main.specific.ParamCommand;
 import ohi.andre.consolelauncher.managers.ClockManager;
-import ohi.andre.consolelauncher.tuils.Tuils;
 
-public class stopwatch extends ParamCommand {
+public class stopwatch implements CommandAbstraction {
 
-    private enum Param implements ohi.andre.consolelauncher.commands.main.Param {
-        stop {
-            @Override
-            public String exec(ExecutePack pack) {
-                return ClockManager.getInstance(pack.context).stopStopwatch();
-            }
-
-            @Override
-            public int[] args() {
-                return new int[0];
-            }
-        },
-        reset {
-            @Override
-            public String exec(ExecutePack pack) {
-                return ClockManager.getInstance(pack.context).resetStopwatch();
-            }
-
-            @Override
-            public int[] args() {
-                return new int[0];
-            }
-        },
-        status {
-            @Override
-            public String exec(ExecutePack pack) {
-                return ClockManager.getInstance(pack.context).getStopwatchStatus();
-            }
-
-            @Override
-            public int[] args() {
-                return new int[0];
-            }
-        };
-
-        static Param get(String p) {
-            p = p.toLowerCase();
-            for (Param param : values()) {
-                if (p.endsWith(param.label())) {
-                    return param;
-                }
-            }
-            return null;
-        }
-
-        static String[] labels() {
-            Param[] values = values();
-            String[] labels = new String[values.length];
-            for (int i = 0; i < values.length; i++) {
-                labels[i] = values[i].label();
-            }
-            return labels;
-        }
-
-        @Override
-        public String label() {
-            return Tuils.MINUS + name();
-        }
-
-        @Override
-        public String onNotArgEnough(ExecutePack pack, int n) {
-            return pack.context.getString(R.string.help_stopwatch);
-        }
-
-        @Override
-        public String onArgNotFound(ExecutePack pack, int index) {
-            return pack.context.getString(R.string.help_stopwatch);
-        }
+    @Override
+    public int[] argType() {
+        return new int[] {CommandAbstraction.PLAIN_TEXT};
     }
 
     @Override
-    public String[] params() {
-        return Param.labels();
+    public String exec(ExecutePack pack) {
+        Object arg = pack.get(Object.class, 0);
+        String input = arg == null ? null : arg.toString().trim().toLowerCase();
+
+        ClockManager clockManager = ClockManager.getInstance(pack.context);
+
+        if (input == null || input.length() == 0 || !input.startsWith("-")) {
+            return clockManager.startStopwatch();
+        }
+
+        if ("-stop".equals(input)) {
+            return clockManager.stopStopwatch();
+        }
+        if ("-reset".equals(input)) {
+            return clockManager.resetStopwatch();
+        }
+        if ("-status".equals(input)) {
+            return clockManager.getStopwatchStatus();
+        }
+
+        return pack.context.getString(R.string.output_invalid_param) + " " + input;
     }
 
     @Override
-    protected ohi.andre.consolelauncher.commands.main.Param paramForString(MainPack pack, String param) {
-        return Param.get(param);
+    public String onArgNotFound(ExecutePack pack, int index) {
+        return ClockManager.getInstance(pack.context).startStopwatch();
     }
 
     @Override
-    protected String doThings(ExecutePack pack) {
-        Object first = pack.get(Object.class, 0);
-        if (first == null) {
-            return ClockManager.getInstance(pack.context).startStopwatch();
-        }
-
-        String token = first.toString().trim();
-        if (token.startsWith(Tuils.MINUS)) {
-            return null;
-        }
-
-        return pack.context.getString(R.string.help_stopwatch);
+    public String onNotArgEnough(ExecutePack pack, int nArgs) {
+        return ClockManager.getInstance(pack.context).startStopwatch();
     }
 
     @Override

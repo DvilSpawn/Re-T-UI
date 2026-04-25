@@ -850,6 +850,10 @@ public class SuggestionsManager {
                     suggestions.add(new Suggestion(beforeLastSpace, quick, true, Suggestion.TYPE_COMMAND));
                 }
             }
+        } else if ("stopwatch".equals(normalized)) {
+            suggestions.add(new Suggestion(beforeLastSpace, "-stop", true, Suggestion.TYPE_COMMAND));
+            suggestions.add(new Suggestion(beforeLastSpace, "-reset", true, Suggestion.TYPE_COMMAND));
+            suggestions.add(new Suggestion(beforeLastSpace, "-status", true, Suggestion.TYPE_COMMAND));
         }
     }
 

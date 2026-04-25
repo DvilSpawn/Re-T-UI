@@ -27,7 +27,12 @@ import android.os.Handler;
 import androidx.core.content.ContextCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.ColorUtils;
+import androidx.core.widget.TextViewCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import android.widget.ProgressBar;
+import android.widget.Button;
+import ohi.andre.consolelauncher.managers.PomodoroManager;
+import ohi.andre.consolelauncher.commands.tuixt.TuixtDialog;
 import androidx.core.view.GestureDetectorCompat;
 import android.text.SpannableString;
 import android.text.TextUtils;
@@ -138,7 +143,7 @@ public class UIManager implements OnTouchListener {
     public static final String EXTRA_NOTIFICATION_LIST = NotificationService.EXTRA_NOTIFICATION_LIST;
     public static final String ACTION_REQUEST_NOTIFICATION_FEED = NotificationService.ACTION_REQUEST_NOTIFICATION_FEED;
     public static final String ACTION_CLOCK_STATE = ClockManager.ACTION_CLOCK_STATE;
-
+    public static final String ACTION_POMODORO_STATE = PomodoroManager.ACTION_POMODORO_STATE;
     public static final String ACTION_NOTIFICATION_RECEIVED = BuildConfig.APPLICATION_ID + ".ui_notification_received";
     public static final String NOTIFICATION_TEXT = "notification_text";
 
@@ -190,6 +195,7 @@ public class UIManager implements OnTouchListener {
     private boolean notificationCompactForKeyboard = false;
     private boolean timerTabVisible = false;
     private boolean stopwatchTabVisible = false;
+    private boolean pomodoroOverlayVisible = false;
     private String selectedAppsDrawerGroup = null;
     private String selectedAppsDrawerAlpha = null;
 
@@ -433,6 +439,7 @@ public class UIManager implements OnTouchListener {
         filter.addAction(ACTION_MUSIC_CHANGED);
         filter.addAction(ACTION_NOTIFICATION_FEED);
         filter.addAction(ACTION_CLOCK_STATE);
+        filter.addAction(ACTION_POMODORO_STATE);
 
         receiver = new BroadcastReceiver() {
             @Override
@@ -445,6 +452,10 @@ public class UIManager implements OnTouchListener {
                     mTerminalAdapter.setDefaultHint();
                 } else if(action.equals(ACTION_ROOT)) {
                     mTerminalAdapter.onRoot();
+                } else if(action.equals(ACTION_CLOCK_STATE)) {
+                    updateClockOverlay(intent);
+                } else if(action.equals(ACTION_POMODORO_STATE)) {
+                    updatePomodoroOverlay(intent);
                 } else if(action.equals(ACTION_NOROOT)) {
                     mTerminalAdapter.onStandard();
 //                } else if(action.equals(ACTION_CLEAR_SUGGESTIONS)) {
@@ -1403,6 +1414,7 @@ public class UIManager implements OnTouchListener {
 
         tab.setBackground(bg);
         tab.setTextColor(borderColor);
+        TextViewCompat.setCompoundDrawableTintList(tab, android.content.res.ColorStateList.valueOf(borderColor));
         tab.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
         tab.setOnClickListener(listener);
     }
@@ -1426,17 +1438,115 @@ public class UIManager implements OnTouchListener {
 
         if (timerRunning) {
             timerTab.setVisibility(View.VISIBLE);
-            timerTab.setText("TMR\n" + ClockManager.formatDuration(timerRemaining));
+            timerTab.setText(ClockManager.formatDuration(timerRemaining));
         } else {
             timerTab.setVisibility(View.GONE);
         }
 
         if (stopwatchRunning) {
             stopwatchTab.setVisibility(View.VISIBLE);
-            stopwatchTab.setText("SW\n" + ClockManager.formatDuration(stopwatchElapsed));
+            stopwatchTab.setText(ClockManager.formatDuration(stopwatchElapsed));
         } else {
             stopwatchTab.setVisibility(View.GONE);
         }
+    }
+
+    private void updatePomodoroOverlay(Intent intent) {
+        boolean running = intent.getBooleanExtra(PomodoroManager.EXTRA_POMODORO_RUNNING, false);
+        long remaining = intent.getLongExtra(PomodoroManager.EXTRA_POMODORO_REMAINING, 0L);
+        long total = intent.getLongExtra(PomodoroManager.EXTRA_POMODORO_TOTAL, 0L);
+        String task = intent.getStringExtra(PomodoroManager.EXTRA_POMODORO_TASK);
+        String typeStr = intent.getStringExtra(PomodoroManager.EXTRA_POMODORO_TYPE);
+        String message = intent.getStringExtra(PomodoroManager.EXTRA_MESSAGE);
+
+        View overlay = mRootView.findViewById(R.id.pomodoro_root);
+        if (overlay == null) {
+            if (!running) return;
+            overlay = View.inflate(mContext, R.layout.pomodoro_overlay, (ViewGroup) mRootView);
+            setupPomodoroOverlay(overlay);
+        }
+
+        if (!running) {
+            ((ViewGroup) mRootView).removeView(overlay);
+            pomodoroOverlayVisible = false;
+            mRootView.findViewById(R.id.main_container).setVisibility(View.VISIBLE);
+            if (message != null) {
+                Tuils.sendOutput(mContext, message);
+            }
+            return;
+        }
+
+        pomodoroOverlayVisible = true;
+        closeKeyboard();
+        mRootView.findViewById(R.id.main_container).setVisibility(View.GONE);
+
+        TextView title = overlay.findViewById(R.id.pomodoro_title);
+        TextView countdown = overlay.findViewById(R.id.pomodoro_countdown);
+        TextView taskDisplay = overlay.findViewById(R.id.pomodoro_task_display);
+        Button terminateBtn = overlay.findViewById(R.id.pomodoro_terminate);
+
+        PomodoroManager.SessionType type = PomodoroManager.SessionType.valueOf(typeStr);
+
+        if (type == PomodoroManager.SessionType.FINISHED) {
+            title.setText("MISSION ACCOMPLISHED");
+            title.setTextColor(XMLPrefsManager.getColor(Theme.input_color));
+            taskDisplay.setText("Good job! You did great!");
+            countdown.setVisibility(View.GONE);
+            terminateBtn.setText("EXIT SESSION");
+        } else {
+            countdown.setVisibility(View.VISIBLE);
+            terminateBtn.setText("TERMINATE SESSION");
+            if (type == PomodoroManager.SessionType.BREAK) {
+                title.setText("TAKE A BREAK");
+                title.setTextColor(XMLPrefsManager.getColor(Theme.input_color));
+            } else {
+                title.setText("FOCUS MODE ACTIVE");
+                title.setTextColor(Color.RED);
+            }
+            taskDisplay.setText("Task: " + task);
+            countdown.setText(ClockManager.formatDuration(remaining));
+        }
+    }
+
+    private void setupPomodoroOverlay(View overlay) {
+        TextView title = overlay.findViewById(R.id.pomodoro_title);
+        TextView countdown = overlay.findViewById(R.id.pomodoro_countdown);
+        TextView taskDisplay = overlay.findViewById(R.id.pomodoro_task_display);
+        Button terminateBtn = overlay.findViewById(R.id.pomodoro_terminate);
+
+        int color = XMLPrefsManager.getColor(Theme.input_color);
+        int bgColor;
+        if (XMLPrefsManager.getBoolean(Ui.system_wallpaper)) {
+            bgColor = XMLPrefsManager.getColor(Theme.overlay_color);
+        } else {
+            bgColor = XMLPrefsManager.getColor(Theme.bg_color);
+        }
+        overlay.setBackgroundColor(bgColor);
+
+        title.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+        countdown.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+        taskDisplay.setTypeface(Tuils.getTypeface(mContext));
+        terminateBtn.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+
+        countdown.setTextColor(color);
+        taskDisplay.setTextColor(color);
+        terminateBtn.setTextColor(color);
+
+        GradientDrawable btnBg = new GradientDrawable();
+        btnBg.setStroke((int) Tuils.dpToPx(mContext, 1.4f), color);
+        btnBg.setColor(bgColor);
+        terminateBtn.setBackground(btnBg);
+
+        terminateBtn.setOnClickListener(v -> {
+            PomodoroManager manager = PomodoroManager.getInstance(mContext);
+            if (manager.getCurrentType() == PomodoroManager.SessionType.FINISHED) {
+                manager.stopSession();
+            } else {
+                TuixtDialog.showConfirm(mContext, "TERMINATE", "Do you really want to stop the focus session?", "YES", "NO", () -> {
+                    manager.stopSession();
+                });
+            }
+        });
     }
 
     private void playHackOverlay() {
