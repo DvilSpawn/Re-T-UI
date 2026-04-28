@@ -27,7 +27,12 @@ import android.os.Handler;
 import androidx.core.content.ContextCompat;
 import androidx.core.app.ActivityCompat;
 import androidx.core.graphics.ColorUtils;
+import androidx.core.widget.TextViewCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
+import android.widget.ProgressBar;
+import android.widget.Button;
+import ohi.andre.consolelauncher.managers.PomodoroManager;
+import ohi.andre.consolelauncher.commands.tuixt.TuixtDialog;
 import androidx.core.view.GestureDetectorCompat;
 import android.text.SpannableString;
 import android.text.TextUtils;
@@ -47,6 +52,7 @@ import android.view.inputmethod.InputMethodManager;
 import android.widget.EditText;
 import ohi.andre.consolelauncher.commands.main.MainPack;
 import ohi.andre.consolelauncher.managers.AppsManager;
+import ohi.andre.consolelauncher.managers.ClockManager;
 import ohi.andre.consolelauncher.managers.music.MusicService;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -92,6 +98,10 @@ import ohi.andre.consolelauncher.managers.xml.options.Notifications;
 import ohi.andre.consolelauncher.managers.xml.options.Suggestions;
 import ohi.andre.consolelauncher.managers.xml.options.Theme;
 import ohi.andre.consolelauncher.managers.xml.options.Toolbar;
+
+import androidx.annotation.NonNull;
+import androidx.viewpager2.widget.ViewPager2;
+import androidx.recyclerview.widget.RecyclerView;
 import ohi.andre.consolelauncher.managers.xml.options.Ui;
 import ohi.andre.consolelauncher.tuils.AllowEqualsSequence;
 import ohi.andre.consolelauncher.tuils.MusicVisualizerView;
@@ -108,6 +118,7 @@ import ohi.andre.consolelauncher.tuils.interfaces.CommandExecuter;
 import ohi.andre.consolelauncher.tuils.interfaces.OnBatteryUpdate;
 import ohi.andre.consolelauncher.tuils.interfaces.OnRedirectionListener;
 import ohi.andre.consolelauncher.tuils.interfaces.OnTextChanged;
+import ohi.andre.consolelauncher.tuils.TuixtWindow;
 import ohi.andre.consolelauncher.tuils.stuff.PolicyReceiver;
 
 public class UIManager implements OnTouchListener {
@@ -136,7 +147,9 @@ public class UIManager implements OnTouchListener {
     public static final String ACTION_NOTIFICATION_FEED = NotificationService.ACTION_NOTIFICATION_FEED;
     public static final String EXTRA_NOTIFICATION_LIST = NotificationService.EXTRA_NOTIFICATION_LIST;
     public static final String ACTION_REQUEST_NOTIFICATION_FEED = NotificationService.ACTION_REQUEST_NOTIFICATION_FEED;
-
+    public static final String ACTION_CLOCK_STATE = ClockManager.ACTION_CLOCK_STATE;
+    public static final String ACTION_POMODORO_STATE = PomodoroManager.ACTION_POMODORO_STATE;
+    public static final String ACTION_DASHBOARD = BuildConfig.APPLICATION_ID + ".ui_dashboard";
     public static final String ACTION_NOTIFICATION_RECEIVED = BuildConfig.APPLICATION_ID + ".ui_notification_received";
     public static final String NOTIFICATION_TEXT = "notification_text";
 
@@ -186,6 +199,12 @@ public class UIManager implements OnTouchListener {
     private final LinkedHashMap<String, TextView> appsDrawerAlphaViews = new LinkedHashMap<>();
     private final ArrayList<NotificationService.Notification> currentOverlayNotifications = new ArrayList<>();
     private boolean notificationCompactForKeyboard = false;
+    private boolean timerTabVisible = false;
+    private boolean stopwatchTabVisible = false;
+    private boolean pomodoroOverlayVisible = false;
+    public boolean isPomodoroOverlayVisible() {
+        return pomodoroOverlayVisible;
+    }
     private String selectedAppsDrawerGroup = null;
     private String selectedAppsDrawerAlpha = null;
 
@@ -193,6 +212,23 @@ public class UIManager implements OnTouchListener {
 
     private InputMethodManager imm;
     private TerminalManager mTerminalAdapter;
+    private List<String> pendingInputs = new ArrayList<>();
+    private static class OutputHolder {
+        CharSequence output;
+        int category;
+        Integer color;
+
+        OutputHolder(CharSequence output, int category) {
+            this.output = output;
+            this.category = category;
+        }
+
+        OutputHolder(int color, CharSequence output) {
+            this.color = color;
+            this.output = output;
+        }
+    }
+    private List<OutputHolder> pendingOutputs = new ArrayList<>();
     int mediumPercentage, lowPercentage;
     String batteryFormat;
 
@@ -394,6 +430,61 @@ public class UIManager implements OnTouchListener {
         }
     }
 
+    public void addDashboardWidget(String title, View content) {
+        if (dashboardContainer == null) return;
+        TuixtWindow window = new TuixtWindow(mContext);
+        window.setTitle(title);
+        window.setContent(content);
+        
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        params.bottomMargin = (int) UIUtils.dpToPx(mContext, 8);
+        dashboardContainer.addView(window, params);
+    }
+
+    private class PagerAdapter extends RecyclerView.Adapter<PagerAdapter.ViewHolder> {
+        @NonNull
+        @Override
+        public ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+            LayoutInflater inflater = LayoutInflater.from(parent.getContext());
+            View view;
+            if (viewType == 0) {
+                view = inflater.inflate(R.layout.home_widgets_page, parent, false);
+                setupHomeWidgetsPage(view);
+            } else {
+                view = inflater.inflate(R.layout.dashboard_view, parent, false);
+                setupDashboardPage(view);
+            }
+            // ViewPager2 requires match_parent for its children
+            view.setLayoutParams(new ViewGroup.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
+            return new ViewHolder(view);
+        }
+
+        @Override
+        public void onBindViewHolder(@NonNull ViewHolder holder, int position) {
+            // Re-binding logic if needed, but since we recreate views in onCreateViewHolder
+            // and ViewPager2 tends to keep them, we might need to be careful.
+            // However, with only 2 pages, they usually stay in memory.
+        }
+
+        @Override
+        public int getItemCount() {
+            return 2;
+        }
+
+        @Override
+        public int getItemViewType(int position) {
+            return position;
+        }
+
+        class ViewHolder extends RecyclerView.ViewHolder {
+            public ViewHolder(View itemView) {
+                super(itemView);
+            }
+        }
+    }
+
     private SuggestionsManager suggestionsManager;
 
     private TextView terminalView;
@@ -409,9 +500,188 @@ public class UIManager implements OnTouchListener {
 
     private final View mRootView;
 
+    private ViewPager2 viewPager;
+    private ViewGroup homeWidgetsContainer;
+    private ViewGroup dashboardContainer;
+
+    private int strokeWidth, cornerRadius;
+    private String[] bgRectColors;
+    private String[] bgColors;
+    private String[] outlineColors;
+    private int shadowXOffset, shadowYOffset;
+    private float shadowRadius;
+    private boolean useDashed;
+    private int[][] margins;
+
+    private final int INPUT_BGCOLOR_INDEX = 10;
+    private final int OUTPUT_BGCOLOR_INDEX = 11;
+    private final int SUGGESTIONS_BGCOLOR_INDEX = 12;
+    private final int TOOLBAR_BGCOLOR_INDEX = 13;
+
+    private final int OUTPUT_MARGINS_INDEX = 1;
+    private final int INPUTAREA_MARGINS_INDEX = 2;
+    private final int INPUTFIELD_MARGINS_INDEX = 3;
+    private final int TOOLBAR_MARGINS_INDEX = 4;
+    private final int SUGGESTIONS_MARGINS_INDEX = 5;
+
+    private CommandExecuter mExecuter;
+
+    private void setupTerminalPage(View terminalPage) {
+        ViewGroup terminalContainer = terminalPage.findViewById(R.id.terminal_container);
+
+        terminalView = (TextView) terminalPage.findViewById(R.id.terminal_view);
+        terminalView.setOnTouchListener(this);
+        ((View) terminalView.getParent().getParent()).setOnTouchListener(this);
+
+        applyBgRect(mContext, terminalView, bgRectColors[OUTPUT_BGCOLOR_INDEX], bgColors[OUTPUT_BGCOLOR_INDEX], margins[OUTPUT_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.output_color));
+        applyShadow(terminalView, outlineColors[OUTPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
+
+        final EditText inputView = (EditText) mRootView.findViewById(R.id.input_view);
+        TextView prefixView = (TextView) mRootView.findViewById(R.id.prefix_view);
+
+        applyBgRect(mContext, mRootView.findViewById(R.id.input_group), bgRectColors[INPUT_BGCOLOR_INDEX], bgColors[INPUT_BGCOLOR_INDEX], margins[INPUTAREA_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.input_color));
+        applyShadow(inputView, outlineColors[INPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
+        applyShadow(prefixView, outlineColors[INPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
+
+        applyMargins(inputView, margins[INPUTFIELD_MARGINS_INDEX]);
+        applyMargins(prefixView, margins[INPUTFIELD_MARGINS_INDEX]);
+
+        ImageView submitView = (ImageView) mRootView.findViewById(R.id.submit_tv);
+        boolean showSubmit = XMLPrefsManager.getBoolean(Ui.show_enter_button);
+        if (!showSubmit) {
+            submitView.setVisibility(View.GONE);
+            submitView = null;
+        }
+
+        boolean showToolbar = XMLPrefsManager.getBoolean(Toolbar.show_toolbar);
+        ImageButton backView = null;
+        ImageButton nextView = null;
+        ImageButton deleteView = null;
+        ImageButton pasteView = null;
+        ImageButton appDrawerView = null;
+
+        if(!showToolbar) {
+            mRootView.findViewById(R.id.tools_view).setVisibility(View.GONE);
+            toolbarView = null;
+        } else {
+            backView = (ImageButton) mRootView.findViewById(R.id.back_view);
+            nextView = (ImageButton) mRootView.findViewById(R.id.next_view);
+            deleteView = (ImageButton) mRootView.findViewById(R.id.delete_view);
+            pasteView = (ImageButton) mRootView.findViewById(R.id.paste_view);
+            appDrawerView = (ImageButton) mRootView.findViewById(R.id.app_drawer_view);
+
+            toolbarView = mRootView.findViewById(R.id.tools_view);
+            hideToolbarNoInput = XMLPrefsManager.getBoolean(Toolbar.hide_toolbar_no_input);
+
+            applyBgRect(mContext, toolbarView, bgRectColors[TOOLBAR_BGCOLOR_INDEX], bgColors[TOOLBAR_BGCOLOR_INDEX], margins[TOOLBAR_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.toolbar_color));
+
+            if (appDrawerView != null) {
+                if (XMLPrefsManager.getBoolean(Behavior.swipe_up_apps_drawer)) {
+                    appDrawerView.setVisibility(View.VISIBLE);
+                    appDrawerView.setOnClickListener(v -> showAppsDrawer());
+                } else {
+                    appDrawerView.setVisibility(View.GONE);
+                }
+            }
+        }
+
+        mTerminalAdapter = new TerminalManager(terminalView, inputView, prefixView, submitView, backView, nextView, deleteView, pasteView, mContext, mainPack, mExecuter);
+
+        for (String s : pendingInputs) {
+            mTerminalAdapter.setInput(s);
+        }
+        pendingInputs.clear();
+
+        for (OutputHolder oh : pendingOutputs) {
+            if (oh.color != null) {
+                mTerminalAdapter.setOutput(oh.color, oh.output);
+            } else {
+                mTerminalAdapter.setOutput(oh.output, oh.category);
+            }
+        }
+        pendingOutputs.clear();
+
+        mTerminalAdapter.focusInputEnd();
+
+        if (XMLPrefsManager.getBoolean(Suggestions.show_suggestions)) {
+            HorizontalScrollView sv = (HorizontalScrollView) mRootView.findViewById(R.id.suggestions_container);
+            if (sv != null) {
+                sv.setFocusable(false);
+                sv.setOnFocusChangeListener((v, hasFocus) -> {
+                    if (hasFocus) {
+                        v.clearFocus();
+                    }
+                });
+                applyBgRect(mContext, sv, bgRectColors[SUGGESTIONS_BGCOLOR_INDEX], bgColors[SUGGESTIONS_BGCOLOR_INDEX], margins[SUGGESTIONS_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.suggestions_bgrectcolor));
+
+                LinearLayout suggestionsView = (LinearLayout) mRootView.findViewById(R.id.suggestions_group);
+                suggestionsManager = new SuggestionsManager(suggestionsView, mainPack, mTerminalAdapter);
+
+                inputView.addTextChangedListener(new SuggestionTextWatcher(suggestionsManager, (currentText, before) -> {
+                    if (!hideToolbarNoInput) return;
+
+                    if (currentText.length() == 0) toolbarView.setVisibility(View.GONE);
+                    else if (before == 0) toolbarView.setVisibility(View.VISIBLE);
+                }));
+            }
+        } else {
+            View sugGroup = mRootView.findViewById(R.id.suggestions_group);
+            if (sugGroup != null) sugGroup.setVisibility(View.GONE);
+        }
+
+        
+        scheduleTypefaceRefreshes();
+    }
+
+    private void setupHomeWidgetsPage(View homePage) {
+        LayoutInflater inflater = LayoutInflater.from(mContext);
+        homeWidgetsContainer = homePage.findViewById(R.id.home_widgets_container);
+        if (homeWidgetsContainer == null) return;
+
+        if (MusicSettings.showWidget()) {
+            View musicWidget = inflater.inflate(R.layout.music_widget, homeWidgetsContainer, false);
+            homeWidgetsContainer.addView(musicWidget);
+            styleMusicWidget(musicWidget);
+        }
+
+        if (NotificationSettings.showTerminal()) {
+            View notificationWidget = homeWidgetsContainer.findViewById(R.id.notification_widget);
+            if (notificationWidget == null) {
+                notificationWidget = inflater.inflate(R.layout.notification_widget, homeWidgetsContainer, false);
+                homeWidgetsContainer.addView(notificationWidget);
+            }
+            notificationWidget.setClickable(true);
+            notificationWidget.setFocusable(true);
+            notificationWidget.setOnClickListener(v -> openNotificationShade());
+            View notificationBorder = notificationWidget.findViewById(R.id.notification_widget_border);
+            if (notificationBorder != null) {
+                notificationBorder.setOnClickListener(v -> openNotificationShade());
+            }
+            View notificationLabel = notificationWidget.findViewById(R.id.notification_widget_label);
+            if (notificationLabel != null) {
+                notificationLabel.setOnClickListener(v -> openNotificationShade());
+            }
+            styleNotificationWidget(notificationWidget);
+        }
+    }
+
+    private void setupDashboardPage(View dashboardPage) {
+        dashboardContainer = dashboardPage.findViewById(R.id.dashboard_container);
+        // Test Widget
+        TextView testView = new TextView(mContext);
+        testView.setText("Welcome to the TUI Dashboard.\nSwipe left/right or type 'dashboard' to navigate.");
+        testView.setTextColor(XMLPrefsManager.getColor(Theme.output_color));
+        testView.setTypeface(Tuils.getTypeface(mContext));
+        testView.setPadding(0, 20, 0, 20);
+        addDashboardWidget("Information", testView);
+        
+        scheduleTypefaceRefreshes();
+    }
+
     protected UIManager(final Context context, final ViewGroup rootView, MainPack mainPack, boolean canApplyTheme, CommandExecuter executer) {
         this.mRootView = rootView;
         this.mainPack = mainPack;
+        this.mExecuter = executer;
 
         IntentFilter filter = new IntentFilter();
         filter.addAction(ACTION_UPDATE_SUGGESTIONS);
@@ -428,6 +698,9 @@ public class UIManager implements OnTouchListener {
         filter.addAction(ACTION_WEATHER_MANUAL_UPDATE);
         filter.addAction(ACTION_MUSIC_CHANGED);
         filter.addAction(ACTION_NOTIFICATION_FEED);
+        filter.addAction(ACTION_CLOCK_STATE);
+        filter.addAction(ACTION_POMODORO_STATE);
+        filter.addAction(ACTION_DASHBOARD);
 
         receiver = new BroadcastReceiver() {
             @Override
@@ -440,6 +713,15 @@ public class UIManager implements OnTouchListener {
                     mTerminalAdapter.setDefaultHint();
                 } else if(action.equals(ACTION_ROOT)) {
                     mTerminalAdapter.onRoot();
+                } else if(action.equals(ACTION_CLOCK_STATE)) {
+                    updateClockOverlay(intent);
+                } else if(action.equals(ACTION_POMODORO_STATE)) {
+                    updatePomodoroOverlay(intent);
+                } else if(action.equals(ACTION_DASHBOARD)) {
+                    if (viewPager != null) {
+                        int page = intent.getIntExtra("page", 1);
+                        viewPager.setCurrentItem(page, true);
+                    }
                 } else if(action.equals(ACTION_NOROOT)) {
                     mTerminalAdapter.onStandard();
 //                } else if(action.equals(ACTION_CLEAR_SUGGESTIONS)) {
@@ -562,25 +844,26 @@ public class UIManager implements OnTouchListener {
                     }
                     updateContextContainerVisibility(rootView);
 
-                    int widgetColor = AppearanceSettings.musicWidgetColor();
+                    int widgetBorderColor = AppearanceSettings.musicWidgetBorderColor();
+                    int widgetTextColor = AppearanceSettings.musicWidgetTextColor();
                     int widgetBgColor = AppearanceSettings.terminalWindowBackground();
 
                     MusicVisualizerView visualizerView = rootView.findViewById(R.id.music_visualizer);
                     if (visualizerView != null) {
-                        visualizerView.setBarColor(widgetColor);
+                        visualizerView.setBarColor(widgetTextColor);
                         visualizerView.setPlaying(isPlaying);
                     }
 
                     TextView songTitleView = rootView.findViewById(R.id.music_song_title);
                     if (songTitleView != null) {
-                        songTitleView.setText(song != null ? "Now Playing: " + song.toUpperCase() : "Now Playing: -");
-                        songTitleView.setTextColor(widgetColor);
+                        songTitleView.setText(song != null ? "Title: " + song.toUpperCase() : "Title: -");
+                        songTitleView.setTextColor(widgetTextColor);
                     }
 
                     TextView singerView = rootView.findViewById(R.id.music_singer);
                     if (singerView != null) {
                         singerView.setText(singer != null ? "Singer      : " + singer.toUpperCase() : "Singer      : -");
-                        singerView.setTextColor(widgetColor);
+                        singerView.setTextColor(widgetTextColor);
                     }
 
                     View borderView = rootView.findViewById(R.id.music_widget_border);
@@ -588,11 +871,11 @@ public class UIManager implements OnTouchListener {
                         GradientDrawable gd = new GradientDrawable();
                         gd.setShape(GradientDrawable.RECTANGLE);
                         if (AppearanceSettings.dashedBorders()) {
-                            gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetColor,
+                            gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetBorderColor,
                                     UIUtils.dpToPx(mContext, AppearanceSettings.dashLength()),
                                     UIUtils.dpToPx(mContext, AppearanceSettings.dashGap()));
                         } else {
-                            gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetColor);
+                            gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetBorderColor);
                         }
                         gd.setColor(widgetBgColor);
                         borderView.setBackgroundDrawable(gd);
@@ -600,19 +883,19 @@ public class UIManager implements OnTouchListener {
 
                     TextView widgetLabel = rootView.findViewById(R.id.music_widget_label);
                     if (widgetLabel != null) {
-                        widgetLabel.setTextColor(widgetColor);
+                        widgetLabel.setTextColor(widgetTextColor);
                         try {
                             GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(
                                     mContext.getResources(), R.drawable.apps_drawer_header_border, null).mutate();
                             if (gd != null) {
                                 if (AppearanceSettings.dashedBorders()) {
-                                    gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetColor,
+                                    gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetBorderColor,
                                             UIUtils.dpToPx(mContext, AppearanceSettings.dashLength()),
                                             UIUtils.dpToPx(mContext, AppearanceSettings.dashGap()));
                                 } else {
-                                    gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetColor);
+                                    gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetBorderColor);
                                 }
-                                gd.setColor(widgetBgColor);
+                                gd.setColor(ColorUtils.setAlphaComponent(widgetBgColor, 255));
                                 widgetLabel.setBackgroundDrawable(gd);
                             }
                         } catch (Exception ignored) {}
@@ -620,18 +903,15 @@ public class UIManager implements OnTouchListener {
                 } else if (action.equals(ACTION_NOTIFICATION_FEED)) {
                     ArrayList<NotificationService.Notification> notifications = intent.getParcelableArrayListExtra(EXTRA_NOTIFICATION_LIST);
                     updateNotificationWidget(rootView, notifications);
+                } else if (action.equals(ACTION_CLOCK_STATE)) {
+                    updateClockOverlay(intent);
+                    String message = intent.getStringExtra(ClockManager.EXTRA_MESSAGE);
+                    if (!TextUtils.isEmpty(message)) {
+                        Tuils.sendOutput(context, message, TerminalManager.CATEGORY_OUTPUT);
+                    }
                 }
             }
         };
-
-        LocalBroadcastManager.getInstance(context.getApplicationContext()).registerReceiver(receiver, filter);
-        if (NotificationSettings.showTerminal()) {
-            final LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(context.getApplicationContext());
-            lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED));
-            rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 350);
-            rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 1100);
-        }
-        ContextCompat.registerReceiver(context.getApplicationContext(), receiver, filter, ContextCompat.RECEIVER_EXPORTED);
 
         policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         component = new ComponentName(context, PolicyReceiver.class);
@@ -667,7 +947,7 @@ public class UIManager implements OnTouchListener {
         lockOnDbTap = XMLPrefsManager.getBoolean(Behavior.double_tap_lock);
         doubleTapCmd = XMLPrefsManager.get(Behavior.double_tap_cmd);
         swipeDownNotifications = XMLPrefsManager.getBoolean(Behavior.swipe_down_notifications);
-        swipeUpAppsDrawer = XMLPrefsManager.getBoolean(Behavior.swipe_up_apps_drawer);
+        swipeUpAppsDrawer = false;
 
         if(!lockOnDbTap && doubleTapCmd == null && !swipeDownNotifications && !swipeUpAppsDrawer) {
             policy = null;
@@ -699,18 +979,7 @@ public class UIManager implements OnTouchListener {
                 @Override
                 public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                     if (swipeDownNotifications && velocityY > 100 && Math.abs(velocityY) > Math.abs(velocityX)) {
-                        try {
-                            @SuppressLint("WrongConstant")
-                            Object sbservice = mContext.getSystemService("statusbar");
-                            Class<?> statusbarManager = Class.forName("android.app.StatusBarManager");
-                            java.lang.reflect.Method expand = statusbarManager.getMethod("expandNotificationsPanel");
-                            expand.invoke(sbservice);
-                            return true;
-                        } catch (Exception e3) {
-                        }
-                    } else if (swipeUpAppsDrawer && velocityY < -100 && Math.abs(velocityY) > Math.abs(velocityX)) {
-                        showAppsDrawer();
-                        return true;
+                        return openNotificationShade();
                     }
                     return false;
                 }
@@ -860,7 +1129,7 @@ public class UIManager implements OnTouchListener {
                 XMLPrefsManager.get(Theme.suggestions_bgrectcolor),
                 XMLPrefsManager.get(Theme.toolbar_bgrectcolor)
         };
-        String[] bgRectColors = new String[statusLinesBgRectColors.length + otherBgRectColors.length];
+        bgRectColors = new String[statusLinesBgRectColors.length + otherBgRectColors.length];
         System.arraycopy(statusLinesBgRectColors, 0, bgRectColors, 0, statusLinesBgRectColors.length);
         System.arraycopy(otherBgRectColors, 0, bgRectColors, statusLinesBgRectColors.length, otherBgRectColors.length);
 
@@ -871,7 +1140,7 @@ public class UIManager implements OnTouchListener {
                 XMLPrefsManager.get(Theme.suggestions_bg),
                 XMLPrefsManager.get(Theme.toolbar_bg)
         };
-        String[] bgColors = new String[statusLineBgColors.length + otherBgColors.length];
+        bgColors = new String[statusLineBgColors.length + otherBgColors.length];
         System.arraycopy(statusLineBgColors, 0, bgColors, 0, statusLineBgColors.length);
         System.arraycopy(otherBgColors, 0, bgColors, statusLineBgColors.length, otherBgColors.length);
 
@@ -880,36 +1149,22 @@ public class UIManager implements OnTouchListener {
                 XMLPrefsManager.get(Theme.input_shadow_color),
                 XMLPrefsManager.get(Theme.output_shadow_color),
         };
-        String[] outlineColors = new String[statusLineOutlineColors.length + otherOutlineColors.length];
+        outlineColors = new String[statusLineOutlineColors.length + otherOutlineColors.length];
         System.arraycopy(statusLineOutlineColors, 0, outlineColors, 0, statusLineOutlineColors.length);
         System.arraycopy(otherOutlineColors, 0, outlineColors, 10, otherOutlineColors.length);
 
-        int shadowXOffset, shadowYOffset;
-        float shadowRadius;
         String[] shadowParams = getListOfStringValues(XMLPrefsManager.get(Ui.shadow_params), 3, "0");
         shadowXOffset = Integer.parseInt(shadowParams[0]);
         shadowYOffset = Integer.parseInt(shadowParams[1]);
         shadowRadius = Float.parseFloat(shadowParams[2]);
 
-        final int INPUT_BGCOLOR_INDEX = 10;
-        final int OUTPUT_BGCOLOR_INDEX = 11;
-        final int SUGGESTIONS_BGCOLOR_INDEX = 12;
-        final int TOOLBAR_BGCOLOR_INDEX = 13;
-
-        int strokeWidth, cornerRadius;
         String[] rectParams = getListOfStringValues(XMLPrefsManager.get(Ui.bgrect_params), 2, "0");
         strokeWidth = Integer.parseInt(rectParams[0]);
         cornerRadius = Integer.parseInt(rectParams[1]);
 
-        boolean useDashed = AppearanceSettings.dashedBorders();
+        useDashed = AppearanceSettings.dashedBorders();
 
-        final int OUTPUT_MARGINS_INDEX = 1;
-        final int INPUTAREA_MARGINS_INDEX = 2;
-        final int INPUTFIELD_MARGINS_INDEX = 3;
-        final int TOOLBAR_MARGINS_INDEX = 4;
-        final int SUGGESTIONS_MARGINS_INDEX = 5;
-
-        final int[][] margins = new int[6][4];
+        margins = new int[6][4];
         margins[0] = getListOfIntValues(XMLPrefsManager.get(Ui.status_lines_margins), 4, 0);
         margins[1] = getListOfIntValues(XMLPrefsManager.get(Ui.output_field_margins), 4, 0);
         margins[2] = getListOfIntValues(XMLPrefsManager.get(Ui.input_area_margins), 4, 0);
@@ -1119,132 +1374,32 @@ public class UIManager implements OnTouchListener {
             }
         }
 
-        if(show[Label.unlock.ordinal()]) {
+        if (show[Label.unlock.ordinal()]) {
             unlockManager = new ohi.andre.consolelauncher.managers.status.UnlockManager(mContext, labelSizes[Label.unlock.ordinal()], statusUpdateListener);
             unlockManager.start();
         }
 
-        int layoutId = R.layout.input_down_layout;
+        // Setup ViewPager2
+        viewPager = mRootView.findViewById(R.id.view_pager);
+        viewPager.setAdapter(new PagerAdapter());
+        viewPager.setOffscreenPageLimit(1); // Keep both pages in memory
+        setupTerminalPage(mRootView);
 
-        LayoutInflater inflater = (LayoutInflater) mContext.getSystemService(Context.LAYOUT_INFLATER_SERVICE);
-        View inputOutputView = inflater.inflate(layoutId, null);
-        ViewGroup terminalContainer = rootView.findViewById(R.id.terminal_container);
-        if (terminalContainer != null) {
-            terminalContainer.addView(inputOutputView);
-        } else {
-            ViewGroup mainContainer = rootView.findViewById(R.id.main_container);
-            if (mainContainer != null) {
-                mainContainer.addView(inputOutputView);
-            } else {
-                rootView.addView(inputOutputView, 0);
-            }
-        }
-
-        terminalView = (TextView) inputOutputView.findViewById(R.id.terminal_view);
-        terminalView.setOnTouchListener(this);
-        ((View) terminalView.getParent().getParent()).setOnTouchListener(this);
-
-        applyBgRect(mContext, terminalView, bgRectColors[OUTPUT_BGCOLOR_INDEX], bgColors[OUTPUT_BGCOLOR_INDEX], margins[OUTPUT_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.output_color));
-        applyShadow(terminalView, outlineColors[OUTPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
-
-        final EditText inputView = (EditText) inputOutputView.findViewById(R.id.input_view);
-        TextView prefixView = (TextView) inputOutputView.findViewById(R.id.prefix_view);
-
-        applyBgRect(mContext, inputOutputView.findViewById(R.id.input_group), bgRectColors[INPUT_BGCOLOR_INDEX], bgColors[INPUT_BGCOLOR_INDEX], margins[INPUTAREA_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.input_color));
-        applyShadow(inputView, outlineColors[INPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
-        applyShadow(prefixView, outlineColors[INPUT_BGCOLOR_INDEX], shadowXOffset, shadowYOffset, shadowRadius);
-
-        applyMargins(inputView, margins[INPUTFIELD_MARGINS_INDEX]);
-        applyMargins(prefixView, margins[INPUTFIELD_MARGINS_INDEX]);
-
-        ImageView submitView = (ImageView) inputOutputView.findViewById(R.id.submit_tv);
-        boolean showSubmit = XMLPrefsManager.getBoolean(Ui.show_enter_button);
-        if (!showSubmit) {
-            submitView.setVisibility(View.GONE);
-            submitView = null;
-        }
-
-//        final ImageButton finalSubmitView = submitView;
-//        inputView.getViewTreeObserver().addOnPreDrawListener(new ViewTreeObserver.OnPreDrawListener() {
-//            @Override
-//            public boolean onPreDraw() {
-//                Tuils.scaleImage(finalSubmitView, 20, 20);
-//
-//                inputView.getViewTreeObserver().removeOnPreDrawListener(this);
-//
-//                return false;
-//            }
-//        });
-
-//        toolbar
-        boolean showToolbar = XMLPrefsManager.getBoolean(Toolbar.show_toolbar);
-        ImageButton backView = null;
-        ImageButton nextView = null;
-        ImageButton deleteView = null;
-        ImageButton pasteView = null;
-
-        if(!showToolbar) {
-            inputOutputView.findViewById(R.id.tools_view).setVisibility(View.GONE);
-            toolbarView = null;
-        } else {
-            backView = (ImageButton) inputOutputView.findViewById(R.id.back_view);
-            nextView = (ImageButton) inputOutputView.findViewById(R.id.next_view);
-            deleteView = (ImageButton) inputOutputView.findViewById(R.id.delete_view);
-            pasteView = (ImageButton) inputOutputView.findViewById(R.id.paste_view);
-
-            toolbarView = inputOutputView.findViewById(R.id.tools_view);
-            hideToolbarNoInput = XMLPrefsManager.getBoolean(Toolbar.hide_toolbar_no_input);
-
-            applyBgRect(mContext, toolbarView, bgRectColors[TOOLBAR_BGCOLOR_INDEX], bgColors[TOOLBAR_BGCOLOR_INDEX], margins[TOOLBAR_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.toolbar_color));
-        }
-
-        if (MusicSettings.showWidget()) {
-            LinearLayout contextContainer = rootView.findViewById(R.id.context_container);
-            if (contextContainer != null) {
-                View musicWidget = inflater.inflate(R.layout.music_widget, contextContainer, false);
-                contextContainer.addView(musicWidget);
-                styleMusicWidget(musicWidget);
-            }
-        }
-
-        if (NotificationSettings.showTerminal()) {
-            LinearLayout contextContainer = rootView.findViewById(R.id.context_container);
-            if (contextContainer != null) {
-                View notificationWidget = inflater.inflate(R.layout.notification_widget, contextContainer, false);
-                contextContainer.addView(notificationWidget);
-                styleNotificationWidget(notificationWidget);
-            }
-        }
-
-        mTerminalAdapter = new TerminalManager(terminalView, inputView, prefixView, submitView, backView, nextView, deleteView, pasteView, context, mainPack, executer);
-
-        if (XMLPrefsManager.getBoolean(Suggestions.show_suggestions)) {
-            HorizontalScrollView sv = (HorizontalScrollView) rootView.findViewById(R.id.suggestions_container);
-            sv.setFocusable(false);
-            sv.setOnFocusChangeListener((v, hasFocus) -> {
-                if(hasFocus) {
-                    v.clearFocus();
-                }
-            });
-            applyBgRect(mContext, sv, bgRectColors[SUGGESTIONS_BGCOLOR_INDEX], bgColors[SUGGESTIONS_BGCOLOR_INDEX], margins[SUGGESTIONS_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.suggestions_bgrectcolor));
-
-            LinearLayout suggestionsView = (LinearLayout) rootView.findViewById(R.id.suggestions_group);
-
-            suggestionsManager = new SuggestionsManager(suggestionsView, mainPack, mTerminalAdapter);
-
-            inputView.addTextChangedListener(new SuggestionTextWatcher(suggestionsManager, (currentText, before) -> {
-                if(!hideToolbarNoInput) return;
-
-                if(currentText.length() == 0) toolbarView.setVisibility(View.GONE);
-                else if(before == 0) toolbarView.setVisibility(View.VISIBLE);
-            }));
-        } else {
-            rootView.findViewById(R.id.suggestions_group).setVisibility(View.GONE);
-        }
+        styleClockOverlay(rootView);
 
         int drawTimes = XMLPrefsManager.getInt(Ui.text_redraw_times);
         if(drawTimes <= 0) drawTimes = 1;
         OutlineTextView.redrawTimes = drawTimes;
+
+        LocalBroadcastManager.getInstance(context.getApplicationContext()).registerReceiver(receiver, filter);
+        ContextCompat.registerReceiver(context.getApplicationContext(), receiver, filter, ContextCompat.RECEIVER_EXPORTED);
+        if (NotificationSettings.showTerminal()) {
+            final LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(context.getApplicationContext());
+            lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED));
+            rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 350);
+            rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 1100);
+        }
+        ClockManager.getInstance(context.getApplicationContext()).broadcastState();
 
         scheduleTypefaceRefreshes();
     }
@@ -1254,7 +1409,7 @@ public class UIManager implements OnTouchListener {
         ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.decorateWidget(musicWidget, R.id.music_widget_border, R.id.music_widget_label);
 
         // Style control buttons
-        int widgetColor = AppearanceSettings.musicWidgetColor();
+        int widgetColor = AppearanceSettings.musicWidgetTextColor();
         boolean useDashed = AppearanceSettings.dashedBorders();
 
         int buttonColor = widgetColor;
@@ -1352,6 +1507,185 @@ public class UIManager implements OnTouchListener {
         hackText.setTextSize(11f);
     }
 
+    private void styleClockOverlay(View rootView) {
+        TextView timerTab = rootView.findViewById(R.id.timer_tab);
+        TextView stopwatchTab = rootView.findViewById(R.id.stopwatch_tab);
+
+        styleClockTab(timerTab, v -> {
+            String message = ClockManager.getInstance(mContext).stopTimer();
+            Tuils.sendOutput(mContext, message, TerminalManager.CATEGORY_OUTPUT);
+        });
+        styleClockTab(stopwatchTab, v -> {
+            String message = ClockManager.getInstance(mContext).stopStopwatch();
+            Tuils.sendOutput(mContext, message, TerminalManager.CATEGORY_OUTPUT);
+        });
+    }
+
+    private void styleClockTab(TextView tab, View.OnClickListener listener) {
+        if (tab == null) {
+            return;
+        }
+
+        int borderColor = XMLPrefsManager.getColor(Theme.input_color);
+        int bgColor = AppearanceSettings.terminalWindowBackground();
+        boolean useDashed = AppearanceSettings.dashedBorders();
+
+        GradientDrawable bg = new GradientDrawable();
+        bg.setShape(GradientDrawable.RECTANGLE);
+        bg.setCornerRadius(Tuils.dpToPx(mContext, 3));
+        if (useDashed) {
+            bg.setStroke((int) Tuils.dpToPx(mContext, 1.4f), borderColor,
+                    Tuils.dpToPx(mContext, AppearanceSettings.dashLength()),
+                    Tuils.dpToPx(mContext, AppearanceSettings.dashGap()));
+        } else {
+            bg.setStroke((int) Tuils.dpToPx(mContext, 1.4f), borderColor);
+        }
+        bg.setColor(bgColor);
+
+        tab.setBackground(bg);
+        tab.setTextColor(borderColor);
+        TextViewCompat.setCompoundDrawableTintList(tab, android.content.res.ColorStateList.valueOf(borderColor));
+        tab.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+        tab.setOnClickListener(listener);
+    }
+
+    private void updateClockOverlay(Intent intent) {
+        TextView timerTab = mRootView.findViewById(R.id.timer_tab);
+        TextView stopwatchTab = mRootView.findViewById(R.id.stopwatch_tab);
+        if (timerTab == null || stopwatchTab == null) {
+            return;
+        }
+
+        styleClockOverlay(mRootView);
+
+        boolean timerRunning = intent.getBooleanExtra(ClockManager.EXTRA_TIMER_RUNNING, false);
+        long timerRemaining = intent.getLongExtra(ClockManager.EXTRA_TIMER_REMAINING, 0L);
+        boolean stopwatchRunning = intent.getBooleanExtra(ClockManager.EXTRA_STOPWATCH_RUNNING, false);
+        long stopwatchElapsed = intent.getLongExtra(ClockManager.EXTRA_STOPWATCH_ELAPSED, 0L);
+
+        timerTabVisible = timerRunning;
+        stopwatchTabVisible = stopwatchRunning;
+
+        if (timerRunning) {
+            timerTab.setVisibility(View.VISIBLE);
+            timerTab.setText(ClockManager.formatDuration(timerRemaining));
+        } else {
+            timerTab.setVisibility(View.GONE);
+        }
+
+        if (stopwatchRunning) {
+            stopwatchTab.setVisibility(View.VISIBLE);
+            stopwatchTab.setText(ClockManager.formatDuration(stopwatchElapsed));
+        } else {
+            stopwatchTab.setVisibility(View.GONE);
+        }
+    }
+
+    private void updatePomodoroOverlay(Intent intent) {
+        boolean running = intent.getBooleanExtra(PomodoroManager.EXTRA_POMODORO_RUNNING, false);
+        long remaining = intent.getLongExtra(PomodoroManager.EXTRA_POMODORO_REMAINING, 0L);
+        long total = intent.getLongExtra(PomodoroManager.EXTRA_POMODORO_TOTAL, 0L);
+        String task = intent.getStringExtra(PomodoroManager.EXTRA_POMODORO_TASK);
+        String typeStr = intent.getStringExtra(PomodoroManager.EXTRA_POMODORO_TYPE);
+        String message = intent.getStringExtra(PomodoroManager.EXTRA_MESSAGE);
+
+        View overlay = mRootView.findViewById(R.id.pomodoro_root);
+        if (overlay == null) {
+            if (!running) return;
+            overlay = View.inflate(mContext, R.layout.pomodoro_overlay, (ViewGroup) mRootView);
+            setupPomodoroOverlay(overlay);
+        }
+
+        if (!running) {
+            ((ViewGroup) mRootView).removeView(overlay);
+            pomodoroOverlayVisible = false;
+            mRootView.findViewById(R.id.main_container).setVisibility(View.VISIBLE);
+            if (message != null) {
+                Tuils.sendOutput(mContext, message);
+            }
+            return;
+        }
+
+        pomodoroOverlayVisible = true;
+        closeKeyboard();
+        mRootView.findViewById(R.id.main_container).setVisibility(View.GONE);
+
+        TextView title = overlay.findViewById(R.id.pomodoro_title);
+        TextView countdown = overlay.findViewById(R.id.pomodoro_countdown);
+        TextView taskDisplay = overlay.findViewById(R.id.pomodoro_task_display);
+        Button terminateBtn = overlay.findViewById(R.id.pomodoro_terminate);
+
+        PomodoroManager.SessionType type = PomodoroManager.SessionType.valueOf(typeStr);
+
+        overlay.setKeepScreenOn(running && type == PomodoroManager.SessionType.FOCUS);
+
+        if (type == PomodoroManager.SessionType.FINISHED) {
+            title.setText("MISSION ACCOMPLISHED");
+            title.setTextColor(XMLPrefsManager.getColor(Theme.input_color));
+            taskDisplay.setText("Good job! You did great!");
+            countdown.setVisibility(View.GONE);
+            terminateBtn.setText("EXIT SESSION");
+        } else {
+            countdown.setVisibility(View.VISIBLE);
+            terminateBtn.setText("TERMINATE SESSION");
+            if (type == PomodoroManager.SessionType.BREAK) {
+                title.setText("TAKE A BREAK");
+                title.setTextColor(XMLPrefsManager.getColor(Theme.input_color));
+            } else {
+                title.setText("FOCUS MODE ACTIVE");
+                title.setTextColor(Color.RED);
+            }
+            taskDisplay.setText("Task: " + task);
+            countdown.setText(ClockManager.formatDuration(remaining));
+        }
+    }
+
+    private void setupPomodoroOverlay(View overlay) {
+        TextView title = overlay.findViewById(R.id.pomodoro_title);
+        TextView countdown = overlay.findViewById(R.id.pomodoro_countdown);
+        TextView taskDisplay = overlay.findViewById(R.id.pomodoro_task_display);
+        Button terminateBtn = overlay.findViewById(R.id.pomodoro_terminate);
+
+        int color = XMLPrefsManager.getColor(Theme.input_color);
+        int bgColor;
+        int textBgColor = ColorUtils.setAlphaComponent(Color.BLACK, 160);
+        if (XMLPrefsManager.getBoolean(Ui.system_wallpaper)) {
+            bgColor = XMLPrefsManager.getColor(Theme.overlay_color);
+        } else {
+            bgColor = XMLPrefsManager.getColor(Theme.bg_color);
+        }
+        overlay.setBackgroundColor(bgColor);
+
+        title.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+        countdown.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+        taskDisplay.setTypeface(Tuils.getTypeface(mContext));
+        terminateBtn.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+
+        countdown.setTextColor(color);
+        taskDisplay.setTextColor(color);
+        terminateBtn.setTextColor(color);
+
+        title.setBackgroundColor(textBgColor);
+        countdown.setBackgroundColor(textBgColor);
+        taskDisplay.setBackgroundColor(textBgColor);
+
+        GradientDrawable btnBg = new GradientDrawable();
+        btnBg.setStroke((int) Tuils.dpToPx(mContext, 1.4f), color);
+        btnBg.setColor(textBgColor);
+        terminateBtn.setBackground(btnBg);
+
+        terminateBtn.setOnClickListener(v -> {
+            PomodoroManager manager = PomodoroManager.getInstance(mContext);
+            if (manager.getCurrentType() == PomodoroManager.SessionType.FINISHED) {
+                manager.stopSession();
+            } else {
+                TuixtDialog.showConfirm(mContext, "TERMINATE", "Do you really want to stop the focus session?", "YES", "NO", () -> {
+                    manager.stopSession();
+                });
+            }
+        });
+    }
+
     private void playHackOverlay() {
         final View overlay = mRootView.findViewById(R.id.hack_overlay);
         final TextView hackText = mRootView.findViewById(R.id.hack_text);
@@ -1416,7 +1750,12 @@ public class UIManager implements OnTouchListener {
     }
 
     private void styleNotificationWidget(View notificationWidget) {
-        ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.decorateWidget(notificationWidget, R.id.notification_widget_border, R.id.notification_widget_label);
+        ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.decorateWidget(
+                notificationWidget,
+                R.id.notification_widget_border,
+                R.id.notification_widget_label,
+                AppearanceSettings.notificationWidgetBorderColor(),
+                AppearanceSettings.notificationWidgetTextColor());
         applyNotificationWidgetSize(notificationWidget);
         renderNotificationRows(notificationWidget);
     }
@@ -1446,7 +1785,8 @@ public class UIManager implements OnTouchListener {
         }
 
         rows.removeAllViews();
-        int widgetColor = AppearanceSettings.musicWidgetColor();
+        int widgetTextColor = AppearanceSettings.notificationWidgetTextColor();
+        int widgetBorderColor = AppearanceSettings.notificationWidgetBorderColor();
 
         int maxRows = notificationCompactForKeyboard ? Math.min(1, currentOverlayNotifications.size()) : currentOverlayNotifications.size();
         for (int i = 0; i < maxRows; i++) {
@@ -1462,10 +1802,10 @@ public class UIManager implements OnTouchListener {
             row.setGravity(Gravity.CENTER_VERTICAL);
             int verticalPadding = (int) Tuils.dpToPx(mContext, notificationCompactForKeyboard ? 5 : 8);
             row.setPadding((int) Tuils.dpToPx(mContext, 10), verticalPadding, (int) Tuils.dpToPx(mContext, 10), verticalPadding);
-            row.setTextColor(widgetColor);
+            row.setTextColor(widgetTextColor);
             row.setText(buildNotificationLine(notification));
 
-            row.setBackground(ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.getRowBackground(mContext));
+            row.setBackground(ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.getRowBackground(mContext, widgetBorderColor));
 
             if (notification.pendingIntent != null) {
                 row.setClickable(true);
@@ -1535,16 +1875,21 @@ public class UIManager implements OnTouchListener {
     }
 
     private void updateContextContainerVisibility(View rootView) {
-        LinearLayout contextContainer = rootView.findViewById(R.id.context_container);
-        if (contextContainer == null) {
-            return;
-        }
+        // Widgets are now inside terminalContainer in terminalPage
+    }
 
-        View musicWidget = rootView.findViewById(R.id.music_widget);
-        View notificationWidget = rootView.findViewById(R.id.notification_widget);
-        boolean showMusicWidget = musicWidget != null && musicWidget.getVisibility() == View.VISIBLE;
-        boolean showNotificationWidget = notificationWidget != null && notificationWidget.getVisibility() == View.VISIBLE;
-        contextContainer.setVisibility(showMusicWidget || showNotificationWidget ? View.VISIBLE : View.GONE);
+    public boolean openNotificationShade() {
+        try {
+            @SuppressLint("WrongConstant")
+            Object sbservice = mContext.getSystemService("statusbar");
+            Class<?> statusbarManager = Class.forName("android.app.StatusBarManager");
+            java.lang.reflect.Method expand = statusbarManager.getMethod("expandNotificationsPanel");
+            expand.invoke(sbservice);
+            return true;
+        } catch (Exception e) {
+            Tuils.sendOutput(Color.RED, mContext, e.toString());
+            return false;
+        }
     }
 
     public boolean isAppsDrawerOpen() {
@@ -2065,24 +2410,41 @@ public class UIManager implements OnTouchListener {
         if (s == null)
             return;
 
+        if (mTerminalAdapter == null) {
+            pendingInputs.add(s);
+            return;
+        }
+
         mTerminalAdapter.setInput(s);
         mTerminalAdapter.focusInputEnd();
     }
 
     public void setHint(String hint) {
-        mTerminalAdapter.setHint(hint);
+        if (mTerminalAdapter != null) {
+            mTerminalAdapter.setHint(hint);
+        }
     }
 
     public void resetHint() {
-        mTerminalAdapter.setDefaultHint();
+        if (mTerminalAdapter != null) {
+            mTerminalAdapter.setDefaultHint();
+        }
     }
 
     public void setOutput(CharSequence s, int category) {
-        mTerminalAdapter.setOutput(s, category);
+        if (mTerminalAdapter != null) {
+            mTerminalAdapter.setOutput(s, category);
+        } else {
+            pendingOutputs.add(new OutputHolder(s, category));
+        }
     }
 
     public void setOutput(int color, CharSequence output) {
-        mTerminalAdapter.setOutput(color, output);
+        if (mTerminalAdapter != null) {
+            mTerminalAdapter.setOutput(color, output);
+        } else {
+            pendingOutputs.add(new OutputHolder(color, output));
+        }
     }
 
     public void disableSuggestions() {
@@ -2094,15 +2456,26 @@ public class UIManager implements OnTouchListener {
     }
 
     public void onBackPressed() {
+        if (pomodoroOverlayVisible) {
+            return;
+        }
+        if (viewPager != null && viewPager.getCurrentItem() != 0) {
+            viewPager.setCurrentItem(0, true);
+            return;
+        }
         if (isAppsDrawerOpen()) {
             hideAppsDrawer();
             return;
         }
-        mTerminalAdapter.onBackPressed();
+        if (mTerminalAdapter != null) {
+            mTerminalAdapter.onBackPressed();
+        }
     }
 
     public void focusTerminal() {
-        mTerminalAdapter.requestInputFocus();
+        if (mTerminalAdapter != null) {
+            mTerminalAdapter.requestInputFocus();
+        }
     }
 
     public void pause() {
@@ -2130,6 +2503,19 @@ public class UIManager implements OnTouchListener {
         if (networkManager != null) networkManager.start();
         if (tuiTimeManager != null) tuiTimeManager.start();
         if (unlockManager != null) unlockManager.start();
+
+        // Refresh Pomodoro overlay on resume
+        PomodoroManager pomodoro = PomodoroManager.getInstance(mContext);
+        if (pomodoro.isRunning()) {
+            Intent intent = new Intent(PomodoroManager.ACTION_POMODORO_STATE);
+            intent.putExtra(PomodoroManager.EXTRA_POMODORO_RUNNING, true);
+            intent.putExtra(PomodoroManager.EXTRA_POMODORO_REMAINING, pomodoro.getRemainingMillis());
+            intent.putExtra(PomodoroManager.EXTRA_POMODORO_TOTAL, pomodoro.getTotalDuration());
+            intent.putExtra(PomodoroManager.EXTRA_POMODORO_TASK, pomodoro.getTaskName());
+            intent.putExtra(PomodoroManager.EXTRA_POMODORO_TYPE, pomodoro.getCurrentType().name());
+            intent.putExtra(PomodoroManager.EXTRA_POMODORO_CYCLE, pomodoro.getCompletedFocuses());
+            updatePomodoroOverlay(intent);
+        }
     }
 
     public void scheduleTypefaceRefreshes() {

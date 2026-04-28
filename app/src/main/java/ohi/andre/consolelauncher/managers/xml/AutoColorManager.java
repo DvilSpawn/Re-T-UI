@@ -217,6 +217,10 @@ public final class AutoColorManager {
             case weather_color:
             case unlock_counter_color:
             case music_widget_color:
+            case music_widget_border_color:
+            case music_widget_text_color:
+            case notification_widget_border_color:
+            case notification_widget_text_color:
             case music_widget_button_color:
                 return palette.accent;
             case output_color:

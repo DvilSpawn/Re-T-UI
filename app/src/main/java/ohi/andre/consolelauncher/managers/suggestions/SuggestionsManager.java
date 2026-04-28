@@ -77,6 +77,7 @@ public class SuggestionsManager {
     private final String[] SPLITTERS = {Tuils.SPACE};
     private final String[] FILE_SPLITTERS = {Tuils.SPACE, "-", "_"};
     private final String[] XML_PREFS_SPLITTERS = {"_"};
+    private static final String HIDDEN_SUGGESTION_COMMAND = "time";
 
     private boolean showAliasDefault, clickToLaunch, showAppsGpDefault, enabled;
     private int minCmdPriority;
@@ -684,6 +685,7 @@ public class SuggestionsManager {
                 suggestAlias(pack.aliasManager, suggestionList, lastWord);
                 suggestApp(pack, suggestionList, lastWord, Tuils.EMPTYSTRING);
                 suggestAppGroup(pack, suggestionList, lastWord, beforeLastSpace );
+                suggestClockCommandRoots(suggestionList, lastWord);
             }
         }
 
@@ -800,6 +802,63 @@ public class SuggestionsManager {
                 suggestWebhookHistory(info, suggestions, afterLastSpace, beforeLastSpace);
                 break;
         }
+
+        suggestClockCommandArgs(suggestions, afterLastSpace, beforeLastSpace);
+    }
+
+    private void suggestClockCommandRoots(List<Suggestion> suggestions, String lastWord) {
+        if (lastWord == null) {
+            return;
+        }
+
+        String lower = lastWord.toLowerCase();
+        if ("timer".startsWith(lower)) {
+            suggestions.add(new Suggestion(null, "timer -add", false, Suggestion.TYPE_PERMANENT));
+            suggestions.add(new Suggestion(null, "timer -stop", true, Suggestion.TYPE_PERMANENT));
+            suggestions.add(new Suggestion(null, "timer -status", true, Suggestion.TYPE_PERMANENT));
+            for (String quick : getTimerQuickSuggestions()) {
+                suggestions.add(new Suggestion(null, "timer " + quick, true, Suggestion.TYPE_PERMANENT));
+            }
+        }
+
+        if ("stopwatch".startsWith(lower)) {
+            suggestions.add(new Suggestion(null, "stopwatch", true, Suggestion.TYPE_PERMANENT));
+            for (String option : new String[]{"stopwatch -stop", "stopwatch -reset", "stopwatch -status"}) {
+                suggestions.add(new Suggestion(null, option, true, Suggestion.TYPE_PERMANENT));
+            }
+        }
+    }
+
+    private void suggestClockCommandArgs(List<Suggestion> suggestions, String afterLastSpace, String beforeLastSpace) {
+        if (beforeLastSpace == null || beforeLastSpace.isEmpty()) {
+            return;
+        }
+
+        String normalized = beforeLastSpace.trim().toLowerCase();
+        if ("timer".equals(normalized)) {
+            suggestions.add(new Suggestion(beforeLastSpace, "-add", false, Suggestion.TYPE_COMMAND));
+            suggestions.add(new Suggestion(beforeLastSpace, "-stop", true, Suggestion.TYPE_COMMAND));
+            suggestions.add(new Suggestion(beforeLastSpace, "-status", true, Suggestion.TYPE_COMMAND));
+            for (String quick : getTimerQuickSuggestions()) {
+                if (afterLastSpace == null || afterLastSpace.isEmpty() || quick.startsWith(afterLastSpace.toLowerCase())) {
+                    suggestions.add(new Suggestion(beforeLastSpace, quick, true, Suggestion.TYPE_COMMAND));
+                }
+            }
+        } else if ("timer -add".equals(normalized)) {
+            for (String quick : getTimerQuickSuggestions()) {
+                if (afterLastSpace == null || afterLastSpace.isEmpty() || quick.startsWith(afterLastSpace.toLowerCase())) {
+                    suggestions.add(new Suggestion(beforeLastSpace, quick, true, Suggestion.TYPE_COMMAND));
+                }
+            }
+        } else if ("stopwatch".equals(normalized)) {
+            suggestions.add(new Suggestion(beforeLastSpace, "-stop", true, Suggestion.TYPE_COMMAND));
+            suggestions.add(new Suggestion(beforeLastSpace, "-reset", true, Suggestion.TYPE_COMMAND));
+            suggestions.add(new Suggestion(beforeLastSpace, "-status", true, Suggestion.TYPE_COMMAND));
+        }
+    }
+
+    private String[] getTimerQuickSuggestions() {
+        return new String[]{"5m", "15m", "30m", "60m"};
     }
 
     private void suggestWebhookHistory(MainPack info, List<Suggestion> suggestions, String afterLastSpace, String beforeLastSpace) {
@@ -1079,6 +1138,7 @@ public class SuggestionsManager {
             for (String s : cmds) {
                 if(canInsert == 0 || Thread.currentThread().isInterrupted()) return;
                 if (CommandTuils.isHiddenCommandName(s)) continue;
+                if (HIDDEN_SUGGESTION_COMMAND.equalsIgnoreCase(s)) continue;
 
                 if(s.startsWith(afterLastSpace)) {
                     CommandAbstraction cmd = info.commandGroup.getCommandByName(s);
@@ -1101,6 +1161,7 @@ public class SuggestionsManager {
         for (CommandAbstraction cmd : cmds) {
             if(canInsert == 0 || Thread.currentThread().isInterrupted()) return;
             if (CommandTuils.isHiddenCommandName(cmd.getClass().getSimpleName())) continue;
+            if (HIDDEN_SUGGESTION_COMMAND.equalsIgnoreCase(cmd.getClass().getSimpleName())) continue;
 
             if (info.cmdPrefs.getPriority(cmd) >= minCmdPriority) {
                 int[] args = cmd.argType();

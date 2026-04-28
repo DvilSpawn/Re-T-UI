@@ -4,6 +4,8 @@ import android.app.Dialog;
 import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.os.Handler;
+import android.os.Looper;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -17,96 +19,104 @@ import android.widget.TextView;
 
 import java.util.List;
 
-final class TuixtDialog {
+public final class TuixtDialog {
 
-    interface ItemAction {
+    public interface ItemAction {
         void onItemSelected(int index);
     }
 
-    interface InputAction {
+    public interface InputAction {
         void onInput(String value);
     }
 
-    interface ConfirmAction {
+    public interface ConfirmAction {
         void onConfirm();
     }
 
     private TuixtDialog() {
     }
 
-    static void showOptions(Context context, String title, List<String> items, ItemAction action) {
-        Dialog dialog = createDialog(context);
-        LinearLayout content = createContent(context);
+    public static void showOptions(Context context, String title, List<String> items, ItemAction action) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            Dialog dialog = createDialog(context);
+            LinearLayout content = createContent(context);
 
-        for (int i = 0; i < items.size(); i++) {
-            int index = i;
-            TextView row = new TextView(context);
-            row.setText(items.get(i).toUpperCase());
-            TuixtTheme.styleListItem(context, row, false);
-            LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+            for (int i = 0; i < items.size(); i++) {
+                int index = i;
+                TextView row = new TextView(context);
+                row.setText(items.get(i).toUpperCase());
+                TuixtTheme.styleListItem(context, row, false);
+                LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
+                rowParams.bottomMargin = TuixtTheme.dp(context, 8);
+                content.addView(row, rowParams);
+                row.setOnClickListener(v -> {
+                    dialog.dismiss();
+                    action.onItemSelected(index);
+                });
+            }
+
+            dialog.setContentView(wrap(context, title, content, null));
+            show(dialog);
+        });
+    }
+
+    public static void showInput(Context context, String title, String hint, String positive, String negative, InputAction action) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            Dialog dialog = createDialog(context);
+            LinearLayout content = createContent(context);
+
+            EditText input = new EditText(context);
+            input.setHint(hint);
+            TuixtTheme.styleInput(context, input);
+            content.addView(input, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
-                    ViewGroup.LayoutParams.WRAP_CONTENT);
-            rowParams.bottomMargin = TuixtTheme.dp(context, 8);
-            content.addView(row, rowParams);
-            row.setOnClickListener(v -> {
-                dialog.dismiss();
-                action.onItemSelected(index);
-            });
-        }
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        dialog.setContentView(wrap(context, title, content, null));
-        show(dialog);
+            LinearLayout buttons = buttons(context, dialog, positive, negative, () -> action.onInput(input.getText().toString()));
+            dialog.setContentView(wrap(context, title, content, buttons));
+            show(dialog);
+        });
     }
 
-    static void showInput(Context context, String title, String hint, String positive, String negative, InputAction action) {
-        Dialog dialog = createDialog(context);
-        LinearLayout content = createContent(context);
+    public static void showConfirm(Context context, String title, String message, String positive, String negative, ConfirmAction action) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            Dialog dialog = createDialog(context);
+            LinearLayout content = createContent(context);
 
-        EditText input = new EditText(context);
-        input.setHint(hint);
-        TuixtTheme.styleInput(context, input);
-        content.addView(input, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
+            TextView messageView = new TextView(context);
+            messageView.setText(message);
+            messageView.setTextColor(TuixtTheme.textColor());
+            messageView.setTypeface(ohi.andre.consolelauncher.tuils.Tuils.getTypeface(context));
+            messageView.setTextSize(14);
+            messageView.setPadding(
+                    TuixtTheme.dp(context, 10),
+                    TuixtTheme.dp(context, 12),
+                    TuixtTheme.dp(context, 10),
+                    TuixtTheme.dp(context, 12));
+            content.addView(messageView, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        LinearLayout buttons = buttons(context, dialog, positive, negative, () -> action.onInput(input.getText().toString()));
-        dialog.setContentView(wrap(context, title, content, buttons));
-        show(dialog);
+            LinearLayout buttons = buttons(context, dialog, positive, negative, action);
+            dialog.setContentView(wrap(context, title, content, buttons));
+            show(dialog);
+        });
     }
 
-    static void showConfirm(Context context, String title, String message, String positive, String negative, ConfirmAction action) {
-        Dialog dialog = createDialog(context);
-        LinearLayout content = createContent(context);
+    public static void showContent(Context context, String title, View customContent, String positive, String negative, ConfirmAction action) {
+        new Handler(Looper.getMainLooper()).post(() -> {
+            Dialog dialog = createDialog(context);
+            LinearLayout content = createContent(context);
+            content.addView(customContent, new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        TextView messageView = new TextView(context);
-        messageView.setText(message);
-        messageView.setTextColor(TuixtTheme.textColor());
-        messageView.setTypeface(ohi.andre.consolelauncher.tuils.Tuils.getTypeface(context));
-        messageView.setTextSize(14);
-        messageView.setPadding(
-                TuixtTheme.dp(context, 10),
-                TuixtTheme.dp(context, 12),
-                TuixtTheme.dp(context, 10),
-                TuixtTheme.dp(context, 12));
-        content.addView(messageView, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        LinearLayout buttons = buttons(context, dialog, positive, negative, action);
-        dialog.setContentView(wrap(context, title, content, buttons));
-        show(dialog);
-    }
-
-    static void showContent(Context context, String title, View customContent, String positive, String negative, ConfirmAction action) {
-        Dialog dialog = createDialog(context);
-        LinearLayout content = createContent(context);
-        content.addView(customContent, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        LinearLayout buttons = buttons(context, dialog, positive, negative, action);
-        dialog.setContentView(wrap(context, title, content, buttons));
-        show(dialog);
+            LinearLayout buttons = buttons(context, dialog, positive, negative, action);
+            dialog.setContentView(wrap(context, title, content, buttons));
+            show(dialog);
+        });
     }
 
     private static Dialog createDialog(Context context) {
@@ -123,12 +133,14 @@ final class TuixtDialog {
     }
 
     private static View wrap(Context context, String title, View content, View buttons) {
-        FrameLayout frame = new FrameLayout(context);
-        frame.setPadding(
+        FrameLayout root = new FrameLayout(context);
+        root.setPadding(
                 TuixtTheme.dp(context, 18),
                 TuixtTheme.dp(context, 18),
                 TuixtTheme.dp(context, 18),
                 TuixtTheme.dp(context, 18));
+
+        FrameLayout container = new FrameLayout(context);
 
         LinearLayout panel = new LinearLayout(context);
         panel.setOrientation(LinearLayout.VERTICAL);
@@ -152,10 +164,11 @@ final class TuixtDialog {
             panel.addView(buttons);
         }
 
-        frame.addView(panel, new FrameLayout.LayoutParams(
+        FrameLayout.LayoutParams panelParams = new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                ViewGroup.LayoutParams.WRAP_CONTENT,
-                Gravity.CENTER));
+                ViewGroup.LayoutParams.WRAP_CONTENT);
+        panelParams.topMargin = TuixtTheme.dp(context, 12);
+        container.addView(panel, panelParams);
 
         TextView header = new TextView(context);
         header.setText(title.toUpperCase());
@@ -164,11 +177,15 @@ final class TuixtDialog {
                 ViewGroup.LayoutParams.WRAP_CONTENT,
                 ViewGroup.LayoutParams.WRAP_CONTENT);
         headerParams.gravity = Gravity.TOP | Gravity.START;
-        headerParams.leftMargin = TuixtTheme.dp(context, 54);
-        headerParams.topMargin = TuixtTheme.dp(context, 6);
-        frame.addView(header, headerParams);
+        headerParams.leftMargin = TuixtTheme.dp(context, 42);
+        container.addView(header, headerParams);
 
-        return frame;
+        root.addView(container, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT,
+                Gravity.CENTER));
+
+        return root;
     }
 
     private static LinearLayout buttons(Context context, Dialog dialog, String positive, String negative, ConfirmAction action) {

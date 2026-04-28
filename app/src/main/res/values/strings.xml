@@ -197,6 +197,7 @@
     <string name="output_flashoff">Flashlight OFF</string>
     <string name="output_flashlightnotavailable">Your device doesn\'t support flashlight</string>
 
+    <string name="help_dashboard">Navigate to the dashboard or switch pages.\n\nUsage:\ndashboard [page_number]</string>
     <!-- status -->
     <string name="battery_label">Battery:</string>
     <string name="mobile_data_label">Mobile data:</string>
@@ -423,8 +424,24 @@
     <string name="help_beep">Emit a \"beep\".
         \n\nUsage:
         \n$ beep</string>
+    <string name="help_timer">Start or manage a timer.
+        \n\nUsage:
+        \n$ timer [duration]
+        \n$ timer -add [duration]
+        \n$ timer -stop
+        \n$ timer -status
+        \n\nExamples:
+        \n$ timer 5m
+        \n$ timer -add 30s</string>
+    <string name="help_stopwatch">Start or manage a stopwatch.
+        \n\nUsage:
+        \n$ stopwatch
+        \n$ stopwatch -stop
+        \n$ stopwatch -reset
+        \n$ stopwatch -status</string>
     <string name="help_notifications">-inc [appName] -> include an application
         \n-exc [appName] -> exclude an application
+        \n-open -> open the Android notification shade
         \n-on -> enable the notification terminal and reload the launcher
         \n-off -> disable the notification terminal and reload the launcher
         \n-color [color] [appName] -> set the color to be used for the application

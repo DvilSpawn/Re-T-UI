@@ -32,6 +32,8 @@ import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.app.ActivityCompat;
 import androidx.core.content.ContextCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.WindowInsetsCompat;
 import androidx.localbroadcastmanager.content.LocalBroadcastManager;
 
 import com.google.firebase.crashlytics.FirebaseCrashlytics;
@@ -251,7 +253,7 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
         filter1.addAction(PublicIOReceiver.ACTION_OUTPUT);
 
         publicIOReceiver = new PublicIOReceiver();
-        ContextCompat.registerReceiver(getApplicationContext(), publicIOReceiver, filter1, "ohi.andre.consolelauncher.permission.RECEIVE_CMD", null, ContextCompat.RECEIVER_EXPORTED);
+        ContextCompat.registerReceiver(getApplicationContext(), publicIOReceiver, filter1, BuildConfig.APPLICATION_ID + ".permission.RECEIVE_CMD", null, ContextCompat.RECEIVER_EXPORTED);
 
         backButtonEnabled = XMLPrefsManager.getBoolean(Behavior.back_button_enabled);
 
@@ -366,6 +368,7 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
 
         ui = new UIManager(this, mainView, main.getMainPack(), canApplyTheme, main.executer());
         ui.scheduleTypefaceRefreshes();
+        installImePaddingHandler(mainView);
 
         main.setRedirectionListener(ui.buildRedirectionListener());
         ui.pack = main.getMainPack();
@@ -374,6 +377,28 @@ public class LauncherActivity extends AppCompatActivity implements Reloadable {
         ui.focusTerminal();
 
         System.gc();
+    }
+
+    private void installImePaddingHandler(View mainView) {
+        final int originalLeft = mainView.getPaddingLeft();
+        final int originalTop = mainView.getPaddingTop();
+        final int originalRight = mainView.getPaddingRight();
+        final int originalBottom = mainView.getPaddingBottom();
+
+        ViewCompat.setOnApplyWindowInsetsListener(mainView, (view, insets) -> {
+            int imeBottom = insets.getInsets(WindowInsetsCompat.Type.ime()).bottom;
+            int systemBottom = insets.getInsets(WindowInsetsCompat.Type.systemBars()).bottom;
+            int keyboardOffset = Math.max(0, imeBottom - systemBottom);
+
+            view.setPadding(
+                    originalLeft,
+                    originalTop,
+                    originalRight,
+                    originalBottom + keyboardOffset
+            );
+            return insets;
+        });
+        ViewCompat.requestApplyInsets(mainView);
     }
 
     @Override
