@@ -450,7 +450,8 @@ public class UIManager implements OnTouchListener {
             LayoutInflater inflater = LayoutInflater.from(parent.getContext());
             View view;
             if (viewType == 0) {
-                view = inflater.inflate(R.layout.empty_page, parent, false);
+                view = inflater.inflate(R.layout.home_widgets_page, parent, false);
+                setupHomeWidgetsPage(view);
             } else {
                 view = inflater.inflate(R.layout.dashboard_view, parent, false);
                 setupDashboardPage(view);
@@ -500,6 +501,7 @@ public class UIManager implements OnTouchListener {
     private final View mRootView;
 
     private ViewPager2 viewPager;
+    private ViewGroup homeWidgetsContainer;
     private ViewGroup dashboardContainer;
 
     private int strokeWidth, cornerRadius;
@@ -525,7 +527,6 @@ public class UIManager implements OnTouchListener {
     private CommandExecuter mExecuter;
 
     private void setupTerminalPage(View terminalPage) {
-        LayoutInflater inflater = LayoutInflater.from(mContext);
         ViewGroup terminalContainer = terminalPage.findViewById(R.id.terminal_container);
 
         terminalView = (TextView) terminalPage.findViewById(R.id.terminal_view);
@@ -557,6 +558,7 @@ public class UIManager implements OnTouchListener {
         ImageButton nextView = null;
         ImageButton deleteView = null;
         ImageButton pasteView = null;
+        ImageButton appDrawerView = null;
 
         if(!showToolbar) {
             mRootView.findViewById(R.id.tools_view).setVisibility(View.GONE);
@@ -566,30 +568,20 @@ public class UIManager implements OnTouchListener {
             nextView = (ImageButton) mRootView.findViewById(R.id.next_view);
             deleteView = (ImageButton) mRootView.findViewById(R.id.delete_view);
             pasteView = (ImageButton) mRootView.findViewById(R.id.paste_view);
+            appDrawerView = (ImageButton) mRootView.findViewById(R.id.app_drawer_view);
 
             toolbarView = mRootView.findViewById(R.id.tools_view);
             hideToolbarNoInput = XMLPrefsManager.getBoolean(Toolbar.hide_toolbar_no_input);
 
             applyBgRect(mContext, toolbarView, bgRectColors[TOOLBAR_BGCOLOR_INDEX], bgColors[TOOLBAR_BGCOLOR_INDEX], margins[TOOLBAR_MARGINS_INDEX], strokeWidth, cornerRadius, useDashed, XMLPrefsManager.getColor(Theme.toolbar_color));
-        }
 
-        if (MusicSettings.showWidget()) {
-            if (terminalContainer != null) {
-                View musicWidget = inflater.inflate(R.layout.music_widget, terminalContainer, false);
-                terminalContainer.addView(musicWidget);
-                styleMusicWidget(musicWidget);
-            }
-        }
-
-        if (NotificationSettings.showTerminal()) {
-            if (terminalContainer != null) {
-                View notificationWidget = terminalContainer.findViewById(R.id.notification_terminal_widget);
-                if (notificationWidget == null) {
-                    notificationWidget = inflater.inflate(R.layout.notification_widget, terminalContainer, false);
-                    notificationWidget.setId(R.id.notification_terminal_widget);
-                    terminalContainer.addView(notificationWidget);
+            if (appDrawerView != null) {
+                if (XMLPrefsManager.getBoolean(Behavior.swipe_up_apps_drawer)) {
+                    appDrawerView.setVisibility(View.VISIBLE);
+                    appDrawerView.setOnClickListener(v -> showAppsDrawer());
+                } else {
+                    appDrawerView.setVisibility(View.GONE);
                 }
-                styleNotificationWidget(notificationWidget);
             }
         }
 
@@ -639,6 +631,38 @@ public class UIManager implements OnTouchListener {
 
         
         scheduleTypefaceRefreshes();
+    }
+
+    private void setupHomeWidgetsPage(View homePage) {
+        LayoutInflater inflater = LayoutInflater.from(mContext);
+        homeWidgetsContainer = homePage.findViewById(R.id.home_widgets_container);
+        if (homeWidgetsContainer == null) return;
+
+        if (MusicSettings.showWidget()) {
+            View musicWidget = inflater.inflate(R.layout.music_widget, homeWidgetsContainer, false);
+            homeWidgetsContainer.addView(musicWidget);
+            styleMusicWidget(musicWidget);
+        }
+
+        if (NotificationSettings.showTerminal()) {
+            View notificationWidget = homeWidgetsContainer.findViewById(R.id.notification_widget);
+            if (notificationWidget == null) {
+                notificationWidget = inflater.inflate(R.layout.notification_widget, homeWidgetsContainer, false);
+                homeWidgetsContainer.addView(notificationWidget);
+            }
+            notificationWidget.setClickable(true);
+            notificationWidget.setFocusable(true);
+            notificationWidget.setOnClickListener(v -> openNotificationShade());
+            View notificationBorder = notificationWidget.findViewById(R.id.notification_widget_border);
+            if (notificationBorder != null) {
+                notificationBorder.setOnClickListener(v -> openNotificationShade());
+            }
+            View notificationLabel = notificationWidget.findViewById(R.id.notification_widget_label);
+            if (notificationLabel != null) {
+                notificationLabel.setOnClickListener(v -> openNotificationShade());
+            }
+            styleNotificationWidget(notificationWidget);
+        }
     }
 
     private void setupDashboardPage(View dashboardPage) {
@@ -820,25 +844,26 @@ public class UIManager implements OnTouchListener {
                     }
                     updateContextContainerVisibility(rootView);
 
-                    int widgetColor = AppearanceSettings.musicWidgetColor();
+                    int widgetBorderColor = AppearanceSettings.musicWidgetBorderColor();
+                    int widgetTextColor = AppearanceSettings.musicWidgetTextColor();
                     int widgetBgColor = AppearanceSettings.terminalWindowBackground();
 
                     MusicVisualizerView visualizerView = rootView.findViewById(R.id.music_visualizer);
                     if (visualizerView != null) {
-                        visualizerView.setBarColor(widgetColor);
+                        visualizerView.setBarColor(widgetTextColor);
                         visualizerView.setPlaying(isPlaying);
                     }
 
                     TextView songTitleView = rootView.findViewById(R.id.music_song_title);
                     if (songTitleView != null) {
-                        songTitleView.setText(song != null ? "Now Playing: " + song.toUpperCase() : "Now Playing: -");
-                        songTitleView.setTextColor(widgetColor);
+                        songTitleView.setText(song != null ? "Title: " + song.toUpperCase() : "Title: -");
+                        songTitleView.setTextColor(widgetTextColor);
                     }
 
                     TextView singerView = rootView.findViewById(R.id.music_singer);
                     if (singerView != null) {
                         singerView.setText(singer != null ? "Singer      : " + singer.toUpperCase() : "Singer      : -");
-                        singerView.setTextColor(widgetColor);
+                        singerView.setTextColor(widgetTextColor);
                     }
 
                     View borderView = rootView.findViewById(R.id.music_widget_border);
@@ -846,11 +871,11 @@ public class UIManager implements OnTouchListener {
                         GradientDrawable gd = new GradientDrawable();
                         gd.setShape(GradientDrawable.RECTANGLE);
                         if (AppearanceSettings.dashedBorders()) {
-                            gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetColor,
+                            gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetBorderColor,
                                     UIUtils.dpToPx(mContext, AppearanceSettings.dashLength()),
                                     UIUtils.dpToPx(mContext, AppearanceSettings.dashGap()));
                         } else {
-                            gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetColor);
+                            gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetBorderColor);
                         }
                         gd.setColor(widgetBgColor);
                         borderView.setBackgroundDrawable(gd);
@@ -858,19 +883,19 @@ public class UIManager implements OnTouchListener {
 
                     TextView widgetLabel = rootView.findViewById(R.id.music_widget_label);
                     if (widgetLabel != null) {
-                        widgetLabel.setTextColor(widgetColor);
+                        widgetLabel.setTextColor(widgetTextColor);
                         try {
                             GradientDrawable gd = (GradientDrawable) androidx.core.content.res.ResourcesCompat.getDrawable(
                                     mContext.getResources(), R.drawable.apps_drawer_header_border, null).mutate();
                             if (gd != null) {
                                 if (AppearanceSettings.dashedBorders()) {
-                                    gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetColor,
+                                    gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetBorderColor,
                                             UIUtils.dpToPx(mContext, AppearanceSettings.dashLength()),
                                             UIUtils.dpToPx(mContext, AppearanceSettings.dashGap()));
                                 } else {
-                                    gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetColor);
+                                    gd.setStroke((int) UIUtils.dpToPx(mContext, 1.5f), widgetBorderColor);
                                 }
-                                gd.setColor(widgetBgColor);
+                                gd.setColor(ColorUtils.setAlphaComponent(widgetBgColor, 255));
                                 widgetLabel.setBackgroundDrawable(gd);
                             }
                         } catch (Exception ignored) {}
@@ -887,16 +912,6 @@ public class UIManager implements OnTouchListener {
                 }
             }
         };
-
-        LocalBroadcastManager.getInstance(context.getApplicationContext()).registerReceiver(receiver, filter);
-        if (NotificationSettings.showTerminal()) {
-            final LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(context.getApplicationContext());
-            lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED));
-            rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 350);
-            rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 1100);
-        }
-        ClockManager.getInstance(context.getApplicationContext()).broadcastState();
-        ContextCompat.registerReceiver(context.getApplicationContext(), receiver, filter, ContextCompat.RECEIVER_EXPORTED);
 
         policy = (DevicePolicyManager) context.getSystemService(Context.DEVICE_POLICY_SERVICE);
         component = new ComponentName(context, PolicyReceiver.class);
@@ -932,7 +947,7 @@ public class UIManager implements OnTouchListener {
         lockOnDbTap = XMLPrefsManager.getBoolean(Behavior.double_tap_lock);
         doubleTapCmd = XMLPrefsManager.get(Behavior.double_tap_cmd);
         swipeDownNotifications = XMLPrefsManager.getBoolean(Behavior.swipe_down_notifications);
-        swipeUpAppsDrawer = XMLPrefsManager.getBoolean(Behavior.swipe_up_apps_drawer);
+        swipeUpAppsDrawer = false;
 
         if(!lockOnDbTap && doubleTapCmd == null && !swipeDownNotifications && !swipeUpAppsDrawer) {
             policy = null;
@@ -964,18 +979,7 @@ public class UIManager implements OnTouchListener {
                 @Override
                 public boolean onFling(MotionEvent e1, MotionEvent e2, float velocityX, float velocityY) {
                     if (swipeDownNotifications && velocityY > 100 && Math.abs(velocityY) > Math.abs(velocityX)) {
-                        try {
-                            @SuppressLint("WrongConstant")
-                            Object sbservice = mContext.getSystemService("statusbar");
-                            Class<?> statusbarManager = Class.forName("android.app.StatusBarManager");
-                            java.lang.reflect.Method expand = statusbarManager.getMethod("expandNotificationsPanel");
-                            expand.invoke(sbservice);
-                            return true;
-                        } catch (Exception e3) {
-                        }
-                    } else if (swipeUpAppsDrawer && velocityY < -100 && Math.abs(velocityY) > Math.abs(velocityX)) {
-                        showAppsDrawer();
-                        return true;
+                        return openNotificationShade();
                     }
                     return false;
                 }
@@ -1379,7 +1383,6 @@ public class UIManager implements OnTouchListener {
         viewPager = mRootView.findViewById(R.id.view_pager);
         viewPager.setAdapter(new PagerAdapter());
         viewPager.setOffscreenPageLimit(1); // Keep both pages in memory
-        
         setupTerminalPage(mRootView);
 
         styleClockOverlay(rootView);
@@ -1389,12 +1392,14 @@ public class UIManager implements OnTouchListener {
         OutlineTextView.redrawTimes = drawTimes;
 
         LocalBroadcastManager.getInstance(context.getApplicationContext()).registerReceiver(receiver, filter);
+        ContextCompat.registerReceiver(context.getApplicationContext(), receiver, filter, ContextCompat.RECEIVER_EXPORTED);
         if (NotificationSettings.showTerminal()) {
             final LocalBroadcastManager lbm = LocalBroadcastManager.getInstance(context.getApplicationContext());
             lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED));
             rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 350);
             rootView.postDelayed(() -> lbm.sendBroadcast(new Intent(ACTION_REQUEST_NOTIFICATION_FEED)), 1100);
         }
+        ClockManager.getInstance(context.getApplicationContext()).broadcastState();
 
         scheduleTypefaceRefreshes();
     }
@@ -1404,7 +1409,7 @@ public class UIManager implements OnTouchListener {
         ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.decorateWidget(musicWidget, R.id.music_widget_border, R.id.music_widget_label);
 
         // Style control buttons
-        int widgetColor = AppearanceSettings.musicWidgetColor();
+        int widgetColor = AppearanceSettings.musicWidgetTextColor();
         boolean useDashed = AppearanceSettings.dashedBorders();
 
         int buttonColor = widgetColor;
@@ -1745,7 +1750,12 @@ public class UIManager implements OnTouchListener {
     }
 
     private void styleNotificationWidget(View notificationWidget) {
-        ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.decorateWidget(notificationWidget, R.id.notification_widget_border, R.id.notification_widget_label);
+        ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.decorateWidget(
+                notificationWidget,
+                R.id.notification_widget_border,
+                R.id.notification_widget_label,
+                AppearanceSettings.notificationWidgetBorderColor(),
+                AppearanceSettings.notificationWidgetTextColor());
         applyNotificationWidgetSize(notificationWidget);
         renderNotificationRows(notificationWidget);
     }
@@ -1775,7 +1785,8 @@ public class UIManager implements OnTouchListener {
         }
 
         rows.removeAllViews();
-        int widgetColor = AppearanceSettings.musicWidgetColor();
+        int widgetTextColor = AppearanceSettings.notificationWidgetTextColor();
+        int widgetBorderColor = AppearanceSettings.notificationWidgetBorderColor();
 
         int maxRows = notificationCompactForKeyboard ? Math.min(1, currentOverlayNotifications.size()) : currentOverlayNotifications.size();
         for (int i = 0; i < maxRows; i++) {
@@ -1791,10 +1802,10 @@ public class UIManager implements OnTouchListener {
             row.setGravity(Gravity.CENTER_VERTICAL);
             int verticalPadding = (int) Tuils.dpToPx(mContext, notificationCompactForKeyboard ? 5 : 8);
             row.setPadding((int) Tuils.dpToPx(mContext, 10), verticalPadding, (int) Tuils.dpToPx(mContext, 10), verticalPadding);
-            row.setTextColor(widgetColor);
+            row.setTextColor(widgetTextColor);
             row.setText(buildNotificationLine(notification));
 
-            row.setBackground(ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.getRowBackground(mContext));
+            row.setBackground(ohi.andre.consolelauncher.tuils.TuiWidgetDecorator.getRowBackground(mContext, widgetBorderColor));
 
             if (notification.pendingIntent != null) {
                 row.setClickable(true);
@@ -1865,6 +1876,20 @@ public class UIManager implements OnTouchListener {
 
     private void updateContextContainerVisibility(View rootView) {
         // Widgets are now inside terminalContainer in terminalPage
+    }
+
+    public boolean openNotificationShade() {
+        try {
+            @SuppressLint("WrongConstant")
+            Object sbservice = mContext.getSystemService("statusbar");
+            Class<?> statusbarManager = Class.forName("android.app.StatusBarManager");
+            java.lang.reflect.Method expand = statusbarManager.getMethod("expandNotificationsPanel");
+            expand.invoke(sbservice);
+            return true;
+        } catch (Exception e) {
+            Tuils.sendOutput(Color.RED, mContext, e.toString());
+            return false;
+        }
     }
 
     public boolean isAppsDrawerOpen() {

@@ -39,6 +39,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_DELETE_PACKAGES" />
     <uses-permission android:name="android.permission.EXPAND_STATUS_BAR" />
+    <uses-permission android:name="android.permission.WRITE_SETTINGS" />
 
     <!-- features -->
     <uses-feature
@@ -76,7 +77,7 @@
         android:required="false" />
 
     <permission
-        android:name="ohi.andre.consolelauncher.permission.RECEIVE_CMD"
+        android:name="${applicationId}.permission.RECEIVE_CMD"
         android:protectionLevel="signature" />
 
     <application

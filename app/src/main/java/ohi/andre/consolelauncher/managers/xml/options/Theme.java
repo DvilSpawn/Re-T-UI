@@ -584,7 +584,51 @@ public enum Theme implements XMLPrefsSave {
 
         @Override
         public String info() {
-            return "The color of the music widget border";
+            return "Legacy fallback color for terminal widgets";
+        }
+    },
+    music_widget_border_color {
+        @Override
+        public String defaultValue() {
+            return "#ffffffff";
+        }
+
+        @Override
+        public String info() {
+            return "The border color of the music widget";
+        }
+    },
+    music_widget_text_color {
+        @Override
+        public String defaultValue() {
+            return "#ffffffff";
+        }
+
+        @Override
+        public String info() {
+            return "The text color of the music widget";
+        }
+    },
+    notification_widget_border_color {
+        @Override
+        public String defaultValue() {
+            return "#ffffffff";
+        }
+
+        @Override
+        public String info() {
+            return "The border color of the notification terminal";
+        }
+    },
+    notification_widget_text_color {
+        @Override
+        public String defaultValue() {
+            return "#ffffffff";
+        }
+
+        @Override
+        public String info() {
+            return "The text color of the notification terminal";
         }
     },
     music_widget_button_color {

@@ -32,7 +32,7 @@ final class TuixtTheme {
     }
 
     static int surfaceColor() {
-        return AppearanceSettings.terminalWindowBackground();
+        return ColorUtils.setAlphaComponent(AppearanceSettings.terminalWindowBackground(), 255);
     }
 
     static int overlayColor() {

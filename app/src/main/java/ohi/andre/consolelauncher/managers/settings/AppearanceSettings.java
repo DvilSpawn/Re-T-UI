@@ -23,6 +23,22 @@ public final class AppearanceSettings {
         return LauncherSettings.getColor(Theme.music_widget_color);
     }
 
+    public static int musicWidgetBorderColor() {
+        return LauncherSettings.getColor(Theme.music_widget_border_color);
+    }
+
+    public static int musicWidgetTextColor() {
+        return LauncherSettings.getColor(Theme.music_widget_text_color);
+    }
+
+    public static int notificationWidgetBorderColor() {
+        return LauncherSettings.getColor(Theme.notification_widget_border_color);
+    }
+
+    public static int notificationWidgetTextColor() {
+        return LauncherSettings.getColor(Theme.notification_widget_text_color);
+    }
+
     public static int terminalWindowBackground() {
         return LauncherSettings.getColor(Theme.window_terminal_bg);
     }

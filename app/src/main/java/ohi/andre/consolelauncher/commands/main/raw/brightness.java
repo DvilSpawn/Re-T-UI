@@ -3,6 +3,7 @@ package ohi.andre.consolelauncher.commands.main.raw;
 import android.app.Activity;
 import android.content.ContentResolver;
 import android.content.Intent;
+import android.net.Uri;
 import android.os.Build;
 import android.provider.Settings;
 import android.view.Window;
@@ -25,7 +26,9 @@ public class brightness implements CommandAbstraction {
     @Override
     public String exec(final ExecutePack pack) throws Exception {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !Settings.System.canWrite(pack.context)) {
-            pack.context.startActivity(new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS));
+            Intent intent = new Intent(Settings.ACTION_MANAGE_WRITE_SETTINGS);
+            intent.setData(Uri.parse("package:" + pack.context.getPackageName()));
+            pack.context.startActivity(intent);
             return pack.context.getString(R.string.output_waitingpermission);
         }
 

@@ -4,6 +4,7 @@ import android.content.Intent;
 
 import java.io.File;
 
+import ohi.andre.consolelauncher.LauncherActivity;
 import ohi.andre.consolelauncher.R;
 import ohi.andre.consolelauncher.commands.CommandAbstraction;
 import ohi.andre.consolelauncher.commands.ExecutePack;
@@ -219,6 +220,31 @@ public class notifications extends ParamCommand implements APICommand {
                     return pack.context.getString(R.string.activity_not_found);
                 }
                 return null;
+            }
+        },
+        open {
+            @Override
+            public int[] args() {
+                return new int[0];
+            }
+
+            @Override
+            public String exec(ExecutePack pack) {
+                if (LauncherActivity.instance != null && LauncherActivity.instance.getUIManager() != null) {
+                    LauncherActivity.instance.runOnUiThread(() -> LauncherActivity.instance.getUIManager().openNotificationShade());
+                    return null;
+                }
+
+                try {
+                    @SuppressWarnings("WrongConstant")
+                    Object sbservice = pack.context.getSystemService("statusbar");
+                    Class<?> statusbarManager = Class.forName("android.app.StatusBarManager");
+                    java.lang.reflect.Method expand = statusbarManager.getMethod("expandNotificationsPanel");
+                    expand.invoke(sbservice);
+                    return null;
+                } catch (Exception e) {
+                    return e.toString();
+                }
             }
         },
         tutorial {

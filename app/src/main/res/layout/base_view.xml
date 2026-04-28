@@ -30,13 +30,16 @@
             android:layout_height="0dp"
             android:layout_weight="1">
 
-            <include layout="@layout/terminal_page" />
-
             <androidx.viewpager2.widget.ViewPager2
                 android:id="@+id/view_pager"
                 android:layout_width="match_parent"
                 android:layout_height="match_parent" />
         </FrameLayout>
+
+        <include
+            layout="@layout/terminal_page"
+            android:layout_width="match_parent"
+            android:layout_height="96dp" />
 
         <!-- Persistent Input Area -->
         <LinearLayout
@@ -114,6 +117,11 @@
                 <ImageButton android:id="@+id/paste_view"
                     style="@style/ToolsBar"
                     android:src="@drawable/ic_paste"/>
+
+                <ImageButton android:id="@+id/app_drawer_view"
+                    style="@style/ToolsBar"
+                    android:background="@null"
+                    android:src="@drawable/ic_menu"/>
 
             </LinearLayout>
 

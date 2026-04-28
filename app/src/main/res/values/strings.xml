@@ -441,6 +441,7 @@
         \n$ stopwatch -status</string>
     <string name="help_notifications">-inc [appName] -> include an application
         \n-exc [appName] -> exclude an application
+        \n-open -> open the Android notification shade
         \n-on -> enable the notification terminal and reload the launcher
         \n-off -> disable the notification terminal and reload the launcher
         \n-color [color] [appName] -> set the color to be used for the application
