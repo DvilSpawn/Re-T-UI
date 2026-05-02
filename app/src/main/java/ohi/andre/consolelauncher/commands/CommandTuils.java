@@ -117,6 +117,9 @@ public class CommandTuils {
                     nArgs += arg.n;
                     args.add(arg.arg);
                     input = arg.residualString;
+                    if (input != null && input.trim().length() == 0) {
+                        input = null;
+                    }
                 }
             }
         } catch (Exception e) {
