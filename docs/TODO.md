@@ -155,6 +155,188 @@ It should not chase casual launcher expectations. It should reward users who are
 - Support community sharing for aliases, modules, workflow aliases, themes, and ASCII headers.
 - Add migration docs for Nova-style power users, Niagara/minimal launcher users, Termux users, and original T-UI users.
 
+## Next Strategic Route - Android Intent Router And Re:T-UI Script
+
+Goal: let Re:T-UI users build native Android workflows from the launcher without requiring Termux, while keeping Termux as the deeper external scripting layer.
+
+The product boundary:
+
+- Re:T-UI should become a command-line router for Android actions.
+- Aliases remain the simple fixed-command chaining layer.
+- Re:T-UI Script becomes the interactive workflow layer for commands that need runtime user input.
+- Termux remains the external shell/programming escape hatch.
+- Do not turn Re:T-UI Script into arbitrary Android/Unix code execution.
+- Keep every action inspectable, aliasable, and readable from plain text.
+
+### Intent Route Phase 1 - Intent Command MVP
+
+- Add a new `intent` command for common Android intent dispatch.
+- Support the most useful safe primitives first:
+  - `intent -view <uri>`
+  - `intent -activity -a <action> [-d <data>] [-t <mime>] [-p <package>] [-n <package/class>]`
+  - `intent -broadcast -a <action> [-p <package>] [-n <package/class>]`
+  - `intent -uri <intent-uri>`
+  - `intent -check ...`
+- Extras should be explicit and typed:
+  - `--es key value` for string
+  - `--ei key value` for int
+  - `--ez key true|false` for boolean
+  - add other extra types only when needed
+- Use cases to validate:
+  - maps/search: `geo:`, `https:`
+  - dial/SMS/email prefill
+  - Android share sheet / `ACTION_SEND`
+  - app-specific activity launch
+  - Tasker/MacroDroid-style explicit broadcasts
+- Safety rules:
+  - catch `ActivityNotFoundException` and print a clean terminal error
+  - require `-a` for broadcasts
+  - prefer explicit package/component for broadcasts
+  - do not support arbitrary implicit `startService()` in phase 1
+  - if services are ever added, require explicit component and a separate design pass
+- Alias examples:
+  - `alias -add maps-home intent -view geo:0,0?q=home`
+  - `alias -add share-note intent -activity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "note"`
+  - `alias -add tasker-work intent -broadcast -a net.dinglisch.android.tasker.ACTION_TASK -p net.dinglisch.android.taskerm --es task_name Work`
+
+### Intent Route Phase 2 - Discovery And Inspectability
+
+- Add `intent -check` before deeper workflow features.
+- Print matching handlers when possible:
+  - app label
+  - package
+  - activity/component
+  - whether the target appears launchable from current package visibility rules
+- Add useful error outputs:
+  - no handler found
+  - missing action/data
+  - invalid component
+  - invalid URI
+  - package visibility may prevent inspection
+- Consider a command for app activities only if needed:
+  - `apps -activities <app>`
+  - or keep this under `intent -check -p <package>`
+- Do not add a visual intent builder yet. This is a technical launcher; command docs and examples are enough for phase 2.
+
+### Intent Route Phase 3 - Docs And Shareable Patterns
+
+- Add wiki docs for intent command examples.
+- Document common recipes:
+  - open maps/search
+  - compose SMS/email
+  - share selected text
+  - open Android settings panels
+  - Tasker/MacroDroid broadcast trigger
+  - open specific app activity
+- Add warnings for app-specific intents:
+  - they can break when target apps update
+  - extras are often undocumented
+  - Android package visibility may affect discovery
+- Add testbook coverage for:
+  - valid activity intent
+  - valid broadcast intent
+  - invalid target
+  - alias calling an intent
+  - intent command inside an alias chain
+
+### Re:T-UI Script Phase 1 - Interactive Prompt Workflows
+
+- Add a small native scripting layer for users who want interactive workflows without Termux.
+- Treat it as a workflow macro language, not a general-purpose programming language.
+- Minimal primitives:
+  - `ask <name> "<prompt>"`
+  - `set <name> "<value>"`
+  - `run "<retui command>"`
+  - `output "<text>"`
+  - `confirm <name> "<prompt>"`
+- Variable substitution:
+  - `$name`
+  - quote-safe substitution for command arguments
+- Example target:
+  - `send-standup` asks for the standup text in the normal input surface, then sends that text through an Android share/send intent.
+- Example script:
+  - `ask note "Standup update"`
+  - `run "intent -activity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT \"$note\""`
+- Execution model:
+  - scripts run one step at a time
+  - `ask` pauses execution and changes the input prompt
+  - user input resumes the script
+  - cancellation should be possible with back/clear/ctrl-c equivalent
+- Storage:
+  - start with plain text files or an XML-backed registry, whichever fits existing command patterns best
+  - scripts should be inspectable from the launcher
+
+### Re:T-UI Script Phase 2 - Command Surface
+
+- Proposed command:
+  - `script -add <name>`
+  - `script -edit <name>`
+  - `script -show <name>`
+  - `script -ls`
+  - `script -rm <name>`
+  - `script -run <name>`
+- Decide whether scripts should register as direct commands:
+  - Option A: user runs `script -run send-standup`
+  - Option B: user runs `send-standup` directly after registration
+  - Option C: aliases call scripts explicitly
+- Preferred starting point:
+  - keep direct execution explicit through `script -run`
+  - allow aliases to hide that if the user wants a shorter command:
+    - `alias -add send-standup script -run send-standup`
+- Add suggestions:
+  - `script`
+  - script names after `script -run`
+  - active prompt suggestions only if script asks for constrained choices later
+
+### Re:T-UI Script Phase 3 - Control Flow, Carefully
+
+- Do not add loops in the first scripting release.
+- Consider only after phase 1 is stable:
+  - `if <var> == <value>`
+  - `else`
+  - `end`
+  - `choice <name> "Prompt" ["A","B","C"]`
+  - `abort "<message>"`
+- Keep failure behavior simple:
+  - command failure stops the script by default
+  - add `continue_on_error` only if users need it
+- Sensitive actions should support confirmation:
+  - uninstall
+  - destructive aliases
+  - broad broadcasts
+  - future explicit service calls
+
+### Re:T-UI Script Phase 4 - Modules And Suggestions Integration
+
+- Allow scripts to update module text through existing module primitives.
+- Allow scripts to emit output through the same terminal output path.
+- Consider script-owned suggestion chips only after script execution is stable.
+- Keep script modules and Re:T-UI Script separate concepts:
+  - script modules render status/output surfaces
+  - Re:T-UI Script orchestrates launcher commands and prompts
+- Avoid adding arbitrary code loading. Re:T-UI Script should only call Re:T-UI commands and approved primitives.
+
+### Re:T-UI Script Phase 5 - Sharing And Trust
+
+- Add export/import only after the language is stable.
+- Shared scripts must be plain-text inspectable before import.
+- Import should show:
+  - script name
+  - commands used
+  - intents/broadcasts used
+  - sensitive actions detected
+- Consider a trust warning for scripts that use:
+  - broadcasts
+  - uninstall/settings
+  - callbacks/tokens
+  - future service intents
+- Community sharing target:
+  - aliases
+  - intent examples
+  - Re:T-UI scripts
+  - modules
+  - themes/presets
+
 ## Completed In v325
 
 - Brightness permission flow
