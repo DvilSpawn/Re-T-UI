@@ -244,6 +244,23 @@ Create or update a script to output:
 - Remove it:
   - `alias -rm intent-test`
 
+## Native File Navigation
+
+- Run `pwd`.
+- Confirm it prints the current Re:T-UI file path.
+- Type `cd ` and pause.
+- Confirm suggestions show folders from the current path and include `..`.
+- Tap a folder suggestion.
+- Confirm the input fills the folder path after `cd`.
+- Run the command.
+- Confirm the input hint/path changes to the selected folder.
+- Run `ls`.
+- Confirm folders are listed with a trailing `/`.
+- Run `cd ..`.
+- Confirm the path moves up one level.
+- Run `open <file>` or `share <file>` from a folder that contains a known file.
+- Confirm existing file commands still resolve paths relative to the new `cd` location.
+
 ## Phase 4 - Deliberate App Drawer
 
 - Open the app drawer.

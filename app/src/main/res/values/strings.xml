@@ -535,6 +535,18 @@
         \n-file -> open the file rss.xml</string>
 
     <!-- linux -->
+    <string name="help_cd">Change Re:T-UI\'s current file path.
+        \nUsage:
+        \n$ cd [folder]
+        \n$ cd ..
+        \n$ cd /sdcard/Download
+    </string>
+    <string name="help_ls">List files and folders in the current path or selected folder.
+        \nUsage:
+        \n$ ls
+        \n$ ls [folder]
+    </string>
+    <string name="help_pwd">Print Re:T-UI\'s current file path.</string>
     <string name="help_ctrlc">Interrupt the current shell process and create a new one</string>
     <string name="help_open">Open a file
         \nUsage:
