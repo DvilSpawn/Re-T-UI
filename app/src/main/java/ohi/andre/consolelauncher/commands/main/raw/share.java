@@ -24,7 +24,7 @@ public class share implements CommandAbstraction {
             if (resolved == null) {
                 return info.res.getString(helpRes());
             }
-            TermuxBridgeManager.dispatchShell(info.context, "share " + resolved, tbridge.SHARE_FILE_SCRIPT, TermuxBridgeManager.TERMUX_HOME, "retui-share", resolved);
+            TermuxBridgeManager.dispatchShell(info.context, "share " + resolved, tbridge.SHARE_FILE_SCRIPT, TermuxBridgeManager.TERMUX_HOME, resolved);
             return "Termux bridge sharing file: " + resolved;
         }
 

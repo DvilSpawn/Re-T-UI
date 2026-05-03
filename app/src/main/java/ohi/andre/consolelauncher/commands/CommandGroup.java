@@ -32,7 +32,7 @@ public class CommandGroup {
 
         if (cmds.isEmpty()) {
             if (packageName.equals("ohi.andre.consolelauncher.commands.main.raw")) {
-                cmds.addAll(Arrays.asList("airplane", "alias", "apps", "bbman", "beep", "bluetooth", "brightness", "calc", "call", "cd", "changelog", "clear", "cntcts", "config", "contacts", "ctrlc", "data", "debug", "devutils", "donate", "exit", "flash", "hack", "help", "htmlextract", "install", "intent", "location", "ls", "module", "music", "notes", "notifications", "open", "pomodoro", "post", "preset", "pwd", "rate", "refresh", "regex", "reply", "restart", "retuitoken", "rss", "search", "settings", "share", "shell", "shortcut", "status", "stopwatch", "tbridge", "termux", "theme", "themer", "time", "timer", "tui", "tuiweather", "tuixt", "tutorial", "uninstall", "username", "vibrate", "volume", "wallpaper", "webhook", "wifi"));
+                cmds.addAll(Arrays.asList("airplane", "alias", "apps", "bbman", "beep", "bluetooth", "brightness", "calc", "call", "cd", "changelog", "clear", "cntcts", "config", "contacts", "ctrlc", "data", "debug", "devutils", "donate", "exit", "files", "flash", "hack", "help", "htmlextract", "install", "intent", "location", "ls", "module", "music", "notes", "notifications", "open", "pomodoro", "post", "preset", "pwd", "rate", "refresh", "regex", "reply", "restart", "retuitoken", "rss", "search", "settings", "share", "shell", "shortcut", "status", "stopwatch", "tbridge", "termux", "termuxopen", "theme", "themer", "time", "timer", "tui", "tuiweather", "tuixt", "tutorial", "uninstall", "username", "vibrate", "volume", "wallpaper", "webhook", "wifi"));
             } else if (packageName.equals("ohi.andre.consolelauncher.commands.tuixt.raw")) {
                 cmds.addAll(Arrays.asList("exit", "help", "save"));
             }
@@ -66,6 +66,11 @@ public class CommandGroup {
             if(commandName.equalsIgnoreCase(name) || commandName.equalsIgnoreCase(normalized)) {
                 return c;
             }
+        }
+
+        CommandAbstraction fallback = buildCommand(normalized.toLowerCase());
+        if(fallback != null && (!(fallback instanceof APICommand) || ((APICommand) fallback).willWorkOn(Build.VERSION.SDK_INT))) {
+            return fallback;
         }
 
         return null;

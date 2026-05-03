@@ -198,6 +198,12 @@
     <string name="output_flashlightnotavailable">Your device doesn\'t support flashlight</string>
 
     <string name="help_termux">Open the Re:T-UI Termux console.\n\nUsage:\ntermux\ntermux -status\ntermux -setup\ntermux -open\ntermux -run &lt;script_path&gt; [args...]\n\nInside the console:\nstatus, setup, open, run, help, clear, exit\n\nFor script modules:\nmodule -add server termux:/data/data/com.termux/files/home/retui/server-health.sh\nmodule -refresh server</string>
+    <string name="help_files">Open Re:T-UI Files.
+        \nUsage:
+        \n$ files
+        \n$ files &lt;command&gt;
+        \n\nLaunches the Re:T-UI Files app with the current path, theme colors, terminal background, top margin, and font.
+    </string>
     <string name="help_tbridge">Use Termux as Re:T-UI\'s power-user file backend.
         \nUsage:
         \ntbridge -status
@@ -259,9 +265,9 @@
         \n-theme -> inspect effective theme, auto color, and font state
         \n-presets -> inspect preset directory and available presets
     </string>
-    <string name="help_settings">-appearance -> open appearance settings
-        \n-music -> open music settings
-        \n(no args) -> open the Re:T-UI settings hub
+    <string name="help_settings">Open the Re:T-UI settings/Themer overlay.
+        \n\nUsage:
+        \n$ settings
     </string>
     <string name="help_wallpaper">-static -> open the static wallpaper picker
         \n-live -> open the live wallpaper picker
@@ -572,6 +578,7 @@
     <string name="help_open">Open a file
         \nUsage:
         \n$ open [pathToFile]
+        \n$ termux-open [pathToFile]
     </string>
     <string name="help_intent">Dispatch Android intents from Re:T-UI.
         \nUsage:

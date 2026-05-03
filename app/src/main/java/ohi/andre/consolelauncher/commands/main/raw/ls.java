@@ -20,7 +20,7 @@ public class ls implements CommandAbstraction {
         if (FileBackendManager.activeBackend(info.context) == FileBackendManager.Active.TERMUX) {
             String path = info.args != null && info.args.length > 0 ? info.getString() : null;
             String resolved = resolve(info.currentDirectory, path);
-            TermuxBridgeManager.dispatchShell(info.context, "ls " + resolved, tbridge.LIST_ALL_SCRIPT, TermuxBridgeManager.TERMUX_HOME, "retui-ls", resolved);
+            TermuxBridgeManager.dispatchShell(info.context, "ls " + resolved, tbridge.LIST_ALL_SCRIPT, TermuxBridgeManager.TERMUX_HOME, resolved);
             return "Termux bridge listing: " + resolved;
         }
 

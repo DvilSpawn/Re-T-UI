@@ -27,7 +27,7 @@ public class cd implements CommandAbstraction {
                 return info.res.getString(helpRes());
             }
             String resolved = resolve(info.currentDirectory, path);
-            TermuxBridgeManager.dispatchShell(info.context, "cd " + resolved, tbridge.CD_SCRIPT, TermuxBridgeManager.TERMUX_HOME, "retui-cd", resolved);
+            TermuxBridgeManager.dispatchShell(info.context, "cd " + resolved, tbridge.CD_SCRIPT, TermuxBridgeManager.TERMUX_HOME, resolved);
             return "Termux bridge checking directory: " + resolved;
         }
 

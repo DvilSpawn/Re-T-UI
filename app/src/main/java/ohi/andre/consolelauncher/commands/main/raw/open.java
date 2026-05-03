@@ -25,7 +25,7 @@ public class open implements CommandAbstraction {
             if (resolved == null) {
                 return info.res.getString(helpRes());
             }
-            TermuxBridgeManager.dispatchShell(info.context, "open " + resolved, tbridge.OPEN_FILE_SCRIPT, TermuxBridgeManager.TERMUX_HOME, "retui-open", resolved);
+            TermuxBridgeManager.dispatchShell(info.context, "open " + resolved, tbridge.OPEN_FILE_SCRIPT, TermuxBridgeManager.TERMUX_HOME, resolved);
             return "Termux bridge opening file: " + resolved;
         }
 

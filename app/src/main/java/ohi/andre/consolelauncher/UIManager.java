@@ -60,6 +60,7 @@ import ohi.andre.consolelauncher.commands.main.MainPack;
 import ohi.andre.consolelauncher.managers.AppsManager;
 import ohi.andre.consolelauncher.managers.AliasManager;
 import ohi.andre.consolelauncher.managers.ClockManager;
+import ohi.andre.consolelauncher.managers.FileManager;
 import ohi.andre.consolelauncher.managers.music.MusicService;
 import ohi.andre.consolelauncher.managers.modules.ModuleManager;
 import java.util.Collections;
@@ -89,11 +90,13 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import ohi.andre.consolelauncher.commands.main.specific.RedirectCommand;
+import ohi.andre.consolelauncher.commands.main.raw.tbridge;
 import ohi.andre.consolelauncher.managers.HTMLExtractManager;
 import ohi.andre.consolelauncher.managers.NotesManager;
 import ohi.andre.consolelauncher.managers.TerminalManager;
 import ohi.andre.consolelauncher.managers.TimeManager;
 import ohi.andre.consolelauncher.managers.TuiLocationManager;
+import ohi.andre.consolelauncher.managers.file.FileBackendManager;
 import ohi.andre.consolelauncher.managers.notifications.NotificationService;
 import ohi.andre.consolelauncher.managers.settings.AppearanceSettings;
 import ohi.andre.consolelauncher.managers.settings.MusicSettings;
@@ -161,6 +164,8 @@ public class UIManager implements OnTouchListener {
     public static final String ACTION_POMODORO_STATE = PomodoroManager.ACTION_POMODORO_STATE;
     public static final String ACTION_TERMUX_CONSOLE = BuildConfig.APPLICATION_ID + ".ui_termux_console";
     public static final String EXTRA_TERMUX_COMMAND = "termux_command";
+    public static final String ACTION_FILE_CONSOLE = BuildConfig.APPLICATION_ID + ".ui_file_console";
+    public static final String EXTRA_FILE_COMMAND = "file_command";
     public static final String ACTION_MODULE_COMMAND = BuildConfig.APPLICATION_ID + ".ui_module_command";
     public static final String EXTRA_MODULE_COMMAND = "module_command";
     public static final String EXTRA_MODULE_NAME = "module_name";
@@ -252,6 +257,22 @@ public class UIManager implements OnTouchListener {
     private TextView termuxUp;
     private TextView termuxDown;
     private TextView termuxPaste;
+    private View fileOverlay;
+    private View fileWindowBorder;
+    private TextView fileWindowLabel;
+    private TextView fileClose;
+    private TextView filePath;
+    private TextView fileOutput;
+    private TextView filePrefix;
+    private EditText fileInput;
+    private ScrollView fileScroll;
+    private View fileInputGroup;
+    private View fileTools;
+    private TextView fileRefresh;
+    private TextView fileUp;
+    private TextView fileOpen;
+    private TextView filePaste;
+    private String lastFileListingPath = "";
     private View suggestionsContainer;
     private int suggestionsVisibilityBeforeTermux = View.VISIBLE;
     private boolean termuxConsoleOpen = false;
@@ -1207,6 +1228,75 @@ public class UIManager implements OnTouchListener {
         }
     }
 
+    private void setupFileConsole(ViewGroup rootView) {
+        fileOverlay = rootView.findViewById(R.id.file_overlay);
+        if (fileOverlay == null) {
+            return;
+        }
+
+        fileWindowBorder = rootView.findViewById(R.id.file_window_border);
+        fileWindowLabel = rootView.findViewById(R.id.file_window_label);
+        fileClose = rootView.findViewById(R.id.file_close);
+        filePath = rootView.findViewById(R.id.file_path);
+        fileOutput = rootView.findViewById(R.id.file_output);
+        filePrefix = rootView.findViewById(R.id.file_prefix);
+        fileInput = rootView.findViewById(R.id.file_input);
+        fileScroll = rootView.findViewById(R.id.file_scroll);
+        fileInputGroup = rootView.findViewById(R.id.file_input_group);
+        fileTools = rootView.findViewById(R.id.file_tools);
+        fileRefresh = rootView.findViewById(R.id.file_refresh);
+        fileUp = rootView.findViewById(R.id.file_up);
+        fileOpen = rootView.findViewById(R.id.file_open);
+        filePaste = rootView.findViewById(R.id.file_paste);
+
+        styleFileConsole();
+
+        if (fileClose != null) {
+            fileClose.setOnClickListener(v -> closeFileConsole());
+        }
+
+        if (fileInput != null) {
+            fileInput.setOnEditorActionListener((v, actionId, event) -> {
+                boolean enter = event != null
+                        && event.getKeyCode() == KeyEvent.KEYCODE_ENTER
+                        && event.getAction() == KeyEvent.ACTION_UP;
+                if (actionId == EditorInfo.IME_ACTION_GO || enter) {
+                    String command = fileInput.getText().toString();
+                    fileInput.setText(Tuils.EMPTYSTRING);
+                    executeFileConsoleCommand(command);
+                    return true;
+                }
+                return false;
+            });
+        }
+
+        if (fileRefresh != null) {
+            fileRefresh.setOnClickListener(v -> refreshFileConsole(true));
+        }
+        if (fileUp != null) {
+            fileUp.setOnClickListener(v -> executeFileConsoleCommand("cd .."));
+        }
+        if (fileOpen != null) {
+            fileOpen.setOnClickListener(v -> {
+                if (fileInput != null) {
+                    fileInput.setText("open ");
+                    fileInput.setSelection(fileInput.getText().length());
+                    fileInput.requestFocus();
+                }
+            });
+        }
+        if (filePaste != null) {
+            filePaste.setOnClickListener(v -> {
+                String text = Tuils.getTextFromClipboard(mContext);
+                if (text != null && text.length() > 0 && fileInput != null) {
+                    int start = Math.max(fileInput.getSelectionStart(), 0);
+                    int end = Math.max(fileInput.getSelectionEnd(), 0);
+                    fileInput.getText().replace(Math.min(start, end), Math.max(start, end), text);
+                }
+            });
+        }
+    }
+
     protected UIManager(final Context context, final ViewGroup rootView, MainPack mainPack, boolean canApplyTheme, CommandExecuter executer) {
         this.mRootView = rootView;
         this.mainPack = mainPack;
@@ -1230,6 +1320,7 @@ public class UIManager implements OnTouchListener {
         filter.addAction(ACTION_CLOCK_STATE);
         filter.addAction(ACTION_POMODORO_STATE);
         filter.addAction(ACTION_TERMUX_CONSOLE);
+        filter.addAction(ACTION_FILE_CONSOLE);
         filter.addAction(ACTION_TERMUX_RESULT);
         filter.addAction(ACTION_MODULE_COMMAND);
 
@@ -1242,6 +1333,7 @@ public class UIManager implements OnTouchListener {
                     if(suggestionsManager != null) suggestionsManager.requestSuggestion(Tuils.EMPTYSTRING);
                 } else if(action.equals(ACTION_UPDATE_HINT)) {
                     mTerminalAdapter.setDefaultHint();
+                    refreshFileConsole(false);
                 } else if(action.equals(ACTION_ROOT)) {
                     mTerminalAdapter.onRoot();
                 } else if(action.equals(ACTION_CLOCK_STATE)) {
@@ -1254,6 +1346,8 @@ public class UIManager implements OnTouchListener {
                     refreshActiveModuleIfNeeded();
                 } else if(action.equals(ACTION_TERMUX_CONSOLE)) {
                     openTermuxConsole(intent.getStringExtra(EXTRA_TERMUX_COMMAND));
+                } else if(action.equals(ACTION_FILE_CONSOLE)) {
+                    openFileConsole(intent.getStringExtra(EXTRA_FILE_COMMAND));
                 } else if(action.equals(ACTION_TERMUX_RESULT)) {
                     appendTermuxResult(intent);
                 } else if(action.equals(ACTION_MODULE_COMMAND)) {
@@ -1469,6 +1563,7 @@ public class UIManager implements OnTouchListener {
 
         styleHackOverlay(rootView);
         setupTermuxConsole(rootView);
+        setupFileConsole(rootView);
 
 //        scrolllllll
         rootView.getViewTreeObserver().addOnGlobalLayoutListener(() -> {
@@ -2153,11 +2248,82 @@ public class UIManager implements OnTouchListener {
                 (int) Tuils.dpToPx(mContext, 2), 0);
     }
 
+    private void styleFileConsole() {
+        if (fileOverlay == null) {
+            return;
+        }
+
+        int borderColor = AppearanceSettings.notificationWidgetBorderColor();
+        int textColor = AppearanceSettings.notificationWidgetTextColor();
+        int bgColor = AppearanceSettings.terminalWindowBackground();
+        int labelBg = ColorUtils.setAlphaComponent(bgColor, 255);
+
+        if (fileWindowBorder != null) {
+            GradientDrawable border = new GradientDrawable();
+            border.setShape(GradientDrawable.RECTANGLE);
+            border.setColor(bgColor);
+            if (AppearanceSettings.dashedBorders()) {
+                border.setStroke((int) Tuils.dpToPx(mContext, 1.5f), borderColor,
+                        Tuils.dpToPx(mContext, AppearanceSettings.dashLength()),
+                        Tuils.dpToPx(mContext, AppearanceSettings.dashGap()));
+            }
+            fileWindowBorder.setBackground(border);
+        }
+
+        if (fileWindowLabel != null) {
+            fileWindowLabel.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+            fileWindowLabel.setTextColor(textColor);
+            fileWindowLabel.setBackground(termuxLabelBackground(labelBg, borderColor));
+        }
+        if (fileClose != null) {
+            fileClose.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+            fileClose.setTextColor(textColor);
+            fileClose.setBackground(termuxLabelBackground(labelBg, borderColor));
+        }
+        if (filePath != null) {
+            filePath.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+            filePath.setTextColor(textColor);
+        }
+        if (fileOutput != null) {
+            fileOutput.setTypeface(Tuils.getTypeface(mContext));
+            fileOutput.setTextColor(textColor);
+            fileOutput.setTextIsSelectable(true);
+        }
+        if (filePrefix != null) {
+            filePrefix.setTypeface(Tuils.getTypeface(mContext), Typeface.BOLD);
+            filePrefix.setTextColor(textColor);
+        }
+        if (fileInput != null) {
+            fileInput.setTypeface(Tuils.getTypeface(mContext));
+            fileInput.setTextColor(textColor);
+            fileInput.setHintTextColor(ColorUtils.setAlphaComponent(textColor, 150));
+        }
+        if (fileInputGroup != null) {
+            GradientDrawable inputBg = new GradientDrawable();
+            inputBg.setShape(GradientDrawable.RECTANGLE);
+            inputBg.setColor(ColorUtils.blendARGB(bgColor, Color.BLACK, 0.16f));
+            if (AppearanceSettings.dashedBorders()) {
+                inputBg.setStroke((int) Tuils.dpToPx(mContext, 1.2f), ColorUtils.setAlphaComponent(borderColor, 180),
+                        Tuils.dpToPx(mContext, AppearanceSettings.dashLength()),
+                        Tuils.dpToPx(mContext, AppearanceSettings.dashGap()));
+            }
+            fileInputGroup.setBackground(inputBg);
+        }
+        if (fileTools != null) {
+            fileTools.setBackgroundColor(Color.TRANSPARENT);
+        }
+        styleTermuxToolButton(fileRefresh, textColor);
+        styleTermuxToolButton(fileUp, textColor);
+        styleTermuxToolButton(fileOpen, textColor);
+        styleTermuxToolButton(filePaste, textColor);
+    }
+
     public void openTermuxConsole(String command) {
         if (termuxOverlay == null) {
             return;
         }
 
+        closeFileConsole(false);
         styleTermuxConsole();
         termuxOverlay.setVisibility(View.VISIBLE);
         termuxOverlay.bringToFront();
@@ -2185,6 +2351,181 @@ public class UIManager implements OnTouchListener {
                     manager.showSoftInput(termuxInput, InputMethodManager.SHOW_IMPLICIT);
                 }
             }, 120);
+        }
+    }
+
+    public void openFileConsole(String command) {
+        if (fileOverlay == null) {
+            return;
+        }
+
+        closeTermuxConsole();
+        styleFileConsole();
+        fileOverlay.setVisibility(View.VISIBLE);
+        fileOverlay.bringToFront();
+        hideHomeSuggestionsForTermux();
+        refreshFileConsole(true);
+
+        String normalized = command == null ? Tuils.EMPTYSTRING : command.trim();
+        if (normalized.length() > 0) {
+            executeFileConsoleCommand(normalized);
+        }
+
+        if (fileInput != null) {
+            fileInput.requestFocus();
+            fileInput.postDelayed(() -> {
+                InputMethodManager manager = (InputMethodManager) mContext.getSystemService(Context.INPUT_METHOD_SERVICE);
+                if (manager != null) {
+                    manager.showSoftInput(fileInput, InputMethodManager.SHOW_IMPLICIT);
+                }
+            }, 120);
+        }
+    }
+
+    private void closeFileConsole() {
+        closeFileConsole(true);
+    }
+
+    private void closeFileConsole(boolean restoreSuggestions) {
+        if (fileOverlay != null) {
+            fileOverlay.setVisibility(View.GONE);
+        }
+        if (restoreSuggestions) {
+            restoreHomeSuggestionsAfterTermux();
+        }
+        if (fileInput != null) {
+            InputMethodManager manager = (InputMethodManager) mContext.getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (manager != null) {
+                manager.hideSoftInputFromWindow(fileInput.getWindowToken(), 0);
+            }
+            fileInput.clearFocus();
+        }
+        if (mTerminalAdapter != null && restoreSuggestions) {
+            mTerminalAdapter.focusInputEnd();
+        }
+    }
+
+    private void executeFileConsoleCommand(String rawCommand) {
+        String command = rawCommand == null ? Tuils.EMPTYSTRING : rawCommand.trim();
+        if (command.length() == 0) {
+            return;
+        }
+        String lower = command.toLowerCase(Locale.US);
+
+        if ("exit".equals(lower) || "close".equals(lower)) {
+            closeFileConsole();
+            return;
+        }
+        if ("help".equals(lower)) {
+            renderFileConsole("Commands:\ncd [folder]\ncd ..\nls\npwd\nopen [file]\ntermux-open [file]\nshare [file]\nrefresh\nexit");
+            return;
+        }
+        if ("refresh".equals(lower) || "reload".equals(lower) || "ls".equals(lower)) {
+            refreshFileConsole(true);
+            return;
+        }
+        if ("pwd".equals(lower)) {
+            renderFileConsole(mainPack.currentDirectory.getAbsolutePath());
+            return;
+        }
+
+        if (mExecuter != null) {
+            mExecuter.execute(command, null);
+        }
+
+        if (lower.equals("cd") || lower.startsWith("cd ")) {
+            if (FileBackendManager.activeBackend(mContext) != FileBackendManager.Active.TERMUX) {
+                refreshFileConsole(true);
+            } else {
+                renderFileConsole("Changing directory...");
+            }
+        } else if (lower.startsWith("open ") || lower.startsWith("termux-open ") || lower.startsWith("share ")) {
+            renderFileConsole("Dispatched: " + command);
+        } else {
+            refreshFileConsole(true);
+        }
+    }
+
+    private void refreshFileConsole(boolean forceTermuxRequest) {
+        if (fileOverlay == null || fileOverlay.getVisibility() != View.VISIBLE || mainPack == null || mainPack.currentDirectory == null) {
+            return;
+        }
+
+        String path = mainPack.currentDirectory.getAbsolutePath();
+        if (filePath != null) {
+            filePath.setText(path);
+        }
+
+        if (FileBackendManager.activeBackend(mContext) == FileBackendManager.Active.TERMUX) {
+            List<String> dirs = TermuxBridgeCache.dirs(path);
+            List<String> files = TermuxBridgeCache.files(path);
+            if (dirs.isEmpty() && files.isEmpty()) {
+                renderFileConsole("Loading " + path + "...");
+            } else {
+                renderFileConsole(buildFileListing(dirs, files, null));
+            }
+            requestFileConsoleTermuxListing(path, forceTermuxRequest);
+            return;
+        }
+
+        renderFileConsole(buildNativeFileListing(mainPack.currentDirectory));
+    }
+
+    private void requestFileConsoleTermuxListing(String path, boolean force) {
+        if (force || TermuxBridgeCache.shouldRequest("dirs", path)) {
+            TermuxBridgeManager.dispatchShell(mContext, "fm-dirs " + path, tbridge.LIST_DIRS_SCRIPT, TermuxBridgeManager.TERMUX_HOME, path);
+        }
+        if (force || TermuxBridgeCache.shouldRequest("files", path)) {
+            TermuxBridgeManager.dispatchShell(mContext, "fm-files " + path, tbridge.LIST_FILES_SCRIPT, TermuxBridgeManager.TERMUX_HOME, path);
+        }
+    }
+
+    private String buildNativeFileListing(File directory) {
+        if (directory == null || !directory.exists()) {
+            return "Path not found.";
+        }
+        if (!directory.isDirectory()) {
+            return directory.getName();
+        }
+
+        File[] children = directory.listFiles();
+        if (children == null || children.length == 0) {
+            return "[]";
+        }
+        Arrays.sort(children, (a, b) -> a.getName().compareToIgnoreCase(b.getName()));
+        List<String> dirs = new ArrayList<>();
+        List<String> files = new ArrayList<>();
+        for (File child : children) {
+            if (child.isDirectory()) {
+                dirs.add(child.getName());
+            } else {
+                files.add(child.getName());
+            }
+        }
+        return buildFileListing(dirs, files, null);
+    }
+
+    private String buildFileListing(List<String> dirs, List<String> files, String error) {
+        StringBuilder out = new StringBuilder();
+        out.append("[..]");
+        if (error != null && error.trim().length() > 0) {
+            out.append('\n').append("error: ").append(error.trim());
+        }
+        for (String dir : dirs) {
+            out.append('\n').append("[D] ").append(dir);
+        }
+        for (String file : files) {
+            out.append('\n').append("    ").append(file);
+        }
+        return out.toString();
+    }
+
+    private void renderFileConsole(String text) {
+        if (fileOutput != null) {
+            fileOutput.setText(text == null ? Tuils.EMPTYSTRING : text);
+        }
+        if (fileScroll != null) {
+            fileScroll.post(() -> fileScroll.fullScroll(View.FOCUS_UP));
         }
     }
 
@@ -2515,12 +2856,35 @@ public class UIManager implements OnTouchListener {
                 MainManager.interactive.addCommand("cd '" + folder.getAbsolutePath().replace("'", "'\\''") + "'");
             }
             LocalBroadcastManager.getInstance(mContext.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_UPDATE_HINT));
+            refreshFileConsole(true);
         }
-        if (label.startsWith("dirs ") && exitCode == 0) {
-            TermuxBridgeCache.putDirs(label.substring(5), stdout);
+        if (label.startsWith("fm-dirs ")) {
+            String target = label.substring(8);
+            if (exitCode == 0) {
+                TermuxBridgeCache.putDirs(target, stdout);
+                updateFileConsoleFromTermux(target, null);
+            } else {
+                updateFileConsoleFromTermux(target, stderr);
+            }
+            return;
+        } else if (label.startsWith("fm-files ")) {
+            String target = label.substring(9);
+            if (exitCode == 0) {
+                TermuxBridgeCache.putFiles(target, stdout);
+                updateFileConsoleFromTermux(target, null);
+            } else {
+                updateFileConsoleFromTermux(target, stderr);
+            }
+            return;
+        } else if (label.startsWith("dirs ") && exitCode == 0) {
+            String target = label.substring(5);
+            TermuxBridgeCache.putDirs(target, stdout);
+            updateFileConsoleFromTermux(target, null);
             LocalBroadcastManager.getInstance(mContext.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_UPDATE_SUGGESTIONS));
         } else if (label.startsWith("files ") && exitCode == 0) {
-            TermuxBridgeCache.putFiles(label.substring(6), stdout);
+            String target = label.substring(6);
+            TermuxBridgeCache.putFiles(target, stdout);
+            updateFileConsoleFromTermux(target, null);
             LocalBroadcastManager.getInstance(mContext.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_UPDATE_SUGGESTIONS));
         }
 
@@ -2542,6 +2906,20 @@ public class UIManager implements OnTouchListener {
             builder.append("\ndebug: ").append(debug.trim());
         }
         Tuils.sendOutput(mContext, builder.toString(), TerminalManager.CATEGORY_OUTPUT);
+    }
+
+    private void updateFileConsoleFromTermux(String path, String error) {
+        if (fileOverlay == null || fileOverlay.getVisibility() != View.VISIBLE || mainPack == null || mainPack.currentDirectory == null) {
+            return;
+        }
+        String current = mainPack.currentDirectory.getAbsolutePath();
+        if (!current.equals(path)) {
+            return;
+        }
+        if (filePath != null) {
+            filePath.setText(current);
+        }
+        renderFileConsole(buildFileListing(TermuxBridgeCache.dirs(path), TermuxBridgeCache.files(path), error));
     }
 
     private void updateModuleFromTermuxResult(String module, String stdout, String stderr, String error, int exitCode) {

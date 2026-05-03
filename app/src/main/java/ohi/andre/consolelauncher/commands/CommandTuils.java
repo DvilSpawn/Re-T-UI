@@ -31,7 +31,7 @@ import ohi.andre.consolelauncher.tuils.Tuils;
 @SuppressLint("DefaultLocale")
 public class CommandTuils {
 
-    private static final String[] HIDDEN_COMMANDS = {"theme"};
+    private static final String[] HIDDEN_COMMANDS = {"theme", "cntcts", "ctrlc", "data", "themer", "tuixt"};
 
     public static boolean isHiddenCommandName(String name) {
         if (name == null) {

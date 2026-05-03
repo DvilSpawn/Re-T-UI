@@ -96,10 +96,12 @@ public class TermuxBridgeManager {
         intent.putExtra(TERMUX_RUN_COMMAND_BACKGROUND, true);
         intent.putExtra(TERMUX_RUN_COMMAND_PENDING_INTENT, createResultPendingIntent(context, label));
 
-        String[] commandArgs = new String[args.length + 2];
+        String[] commandArgs = new String[args.length + 3];
         commandArgs[0] = "-c";
         commandArgs[1] = script;
-        System.arraycopy(args, 0, commandArgs, 2, args.length);
+        // sh -c uses the first extra argument as $0. Keep caller args starting at $1.
+        commandArgs[2] = "retui";
+        System.arraycopy(args, 0, commandArgs, 3, args.length);
         intent.putExtra(TERMUX_RUN_COMMAND_ARGUMENTS, commandArgs);
 
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {

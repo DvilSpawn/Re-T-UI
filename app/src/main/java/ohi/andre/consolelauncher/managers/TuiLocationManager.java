@@ -146,7 +146,7 @@ public class TuiLocationManager {
             Tuils.toFile(e);
         }
 
-        handler = new Handler();
+        handler = new Handler(Looper.getMainLooper());
         handler.postDelayed(new Runnable() {
             @Override
             public void run() {

@@ -1393,7 +1393,7 @@ public class SuggestionsManager {
             return false;
         }
         String command = beforeLastSpace.trim().toLowerCase();
-        return "open".equals(command) || "share".equals(command);
+        return "open".equals(command) || "termux-open".equals(command) || "share".equals(command);
     }
 
     private void suggestOpenableFile(MainPack info, List<Suggestion> suggestions, String afterLastSpace, String beforeLastSpace) {
@@ -1502,7 +1502,7 @@ public class SuggestionsManager {
             return;
         }
         String script = "dirs".equals(type) ? tbridge.LIST_DIRS_SCRIPT : tbridge.LIST_FILES_SCRIPT;
-        TermuxBridgeManager.dispatchShell(info.context, type + " " + path, script, TermuxBridgeManager.TERMUX_HOME, "retui-" + type, path);
+        TermuxBridgeManager.dispatchShell(info.context, type + " " + path, script, TermuxBridgeManager.TERMUX_HOME, path);
     }
 
     private TermuxSuggestionTarget termuxTarget(File currentDirectory, String afterLastSpace) {

@@ -71,17 +71,17 @@ public class tbridge implements CommandAbstraction {
 
         String resolved = resolvePath(info, path);
         if ("-dirs".equals(option)) {
-            TermuxBridgeManager.dispatchShell(info.context, "dirs " + resolved, LIST_DIRS_SCRIPT, TermuxBridgeManager.TERMUX_HOME, "retui-dirs", resolved);
+            TermuxBridgeManager.dispatchShell(info.context, "dirs " + resolved, LIST_DIRS_SCRIPT, TermuxBridgeManager.TERMUX_HOME, resolved);
             return "Termux bridge listing directories: " + resolved;
         }
 
         if ("-files".equals(option)) {
-            TermuxBridgeManager.dispatchShell(info.context, "files " + resolved, LIST_FILES_SCRIPT, TermuxBridgeManager.TERMUX_HOME, "retui-files", resolved);
+            TermuxBridgeManager.dispatchShell(info.context, "files " + resolved, LIST_FILES_SCRIPT, TermuxBridgeManager.TERMUX_HOME, resolved);
             return "Termux bridge listing files: " + resolved;
         }
 
         if ("-ls".equals(option)) {
-            TermuxBridgeManager.dispatchShell(info.context, "ls " + resolved, LIST_ALL_SCRIPT, TermuxBridgeManager.TERMUX_HOME, "retui-ls", resolved);
+            TermuxBridgeManager.dispatchShell(info.context, "ls " + resolved, LIST_ALL_SCRIPT, TermuxBridgeManager.TERMUX_HOME, resolved);
             return "Termux bridge listing: " + resolved;
         }
 
