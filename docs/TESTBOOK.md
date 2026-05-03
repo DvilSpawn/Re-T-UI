@@ -223,6 +223,52 @@ Create or update a script to output:
   - failure handling
   - external triggers
 
+## Intent Router MVP
+
+- Run `help intent`.
+- Confirm usage covers `-view`, `-activity`, `-broadcast`, `-uri`, and `-check`.
+- Run `intent -check -view https://example.com`.
+- Confirm at least one browser/handler is listed, or a clean "No handlers found" message appears.
+- Run `intent -view https://example.com`.
+- Confirm Android opens a browser or chooser.
+- Run `intent -check -activity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "hello from retui"`.
+- Confirm share-capable handlers are listed.
+- Run `intent -activity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "hello from retui"`.
+- Confirm Android opens a share target or chooser.
+- Run `intent -broadcast -a com.example.TEST`.
+- Confirm Re:T-UI refuses the broad implicit broadcast and asks for `-p`, `-n`, or `--unsafe-implicit`.
+- Create an alias:
+  - `alias -add intent-test intent -view https://example.com`
+- Run `intent-test`.
+- Confirm the alias dispatches the intent.
+- Remove it:
+  - `alias -rm intent-test`
+
+## Native File Navigation
+
+- Run `pwd`.
+- Confirm it prints the current Re:T-UI file path.
+- Type `cd ` and pause.
+- Confirm suggestions show folders from the current path and include `..`.
+- Tap a folder suggestion.
+- Confirm the input fills the folder path after `cd`.
+- Run the command.
+- Confirm the input hint/path changes to the selected folder.
+- Run `ls`.
+- Confirm folders are listed with a trailing `/`.
+- Run `cd ..`.
+- Confirm the path moves up one level.
+- Run `open <file>` or `share <file>` from a folder that contains a known file.
+- Confirm existing file commands still resolve paths relative to the new `cd` location.
+- Run `shell pwd`.
+- Confirm shell output prints the embedded shell path.
+- Run `shell cd ..`.
+- Confirm the input hint/path updates after the shell changes directory.
+- Type an unknown shell-like command without `shell`, such as `grep`.
+- Confirm Re:T-UI prints command-not-found/help guidance instead of silently running the embedded shell.
+- Run `config -set shell_requires_prefix false` only for compatibility testing.
+- Confirm unknown shell-like input can fall through only when that behavior setting is off.
+
 ## Phase 4 - Deliberate App Drawer
 
 - Open the app drawer.

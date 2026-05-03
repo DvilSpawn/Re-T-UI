@@ -155,6 +155,359 @@ It should not chase casual launcher expectations. It should reward users who are
 - Support community sharing for aliases, modules, workflow aliases, themes, and ASCII headers.
 - Add migration docs for Nova-style power users, Niagara/minimal launcher users, Termux users, and original T-UI users.
 
+## Next Strategic Route - Android Intent Router And Re:T-UI Script
+
+Goal: let Re:T-UI users build native Android workflows from the launcher without requiring Termux, while keeping Termux as the deeper external scripting layer.
+
+The product boundary:
+
+- Re:T-UI should become a command-line router for Android actions.
+- Aliases remain the simple fixed-command chaining layer.
+- Re:T-UI Script becomes the interactive workflow layer for commands that need runtime user input.
+- Termux remains the external shell/programming escape hatch.
+- Do not turn Re:T-UI Script into arbitrary Android/Unix code execution.
+- Keep every action inspectable, aliasable, and readable from plain text.
+
+### Intent Route Phase 1 - Intent Command MVP
+
+- [x] Add a new `intent` command for common Android intent dispatch.
+- [x] Support the most useful safe primitives first:
+  - [x] `intent -view <uri>`
+  - [x] `intent -activity -a <action> [-d <data>] [-t <mime>] [-p <package>] [-n <package/class>]`
+  - [x] `intent -broadcast -a <action> [-p <package>] [-n <package/class>]`
+  - [x] `intent -uri <intent-uri>`
+  - [x] `intent -check ...`
+- Extras should be explicit and typed:
+  - [x] `--es key value` for string
+  - [x] `--ei key value` for int
+  - [x] `--ez key true|false` for boolean
+  - add other extra types only when needed
+- Use cases to validate:
+  - maps/search: `geo:`, `https:`
+  - dial/SMS/email prefill
+  - Android share sheet / `ACTION_SEND`
+  - app-specific activity launch
+  - Tasker/MacroDroid-style explicit broadcasts
+- Safety rules:
+  - [x] catch `ActivityNotFoundException` and print a clean terminal error
+  - [x] require `-a` for broadcasts
+  - [x] prefer explicit package/component for broadcasts
+  - [x] do not support arbitrary implicit `startService()` in phase 1
+  - if services are ever added, require explicit component and a separate design pass
+- Alias examples:
+  - `alias -add maps-home intent -view geo:0,0?q=home`
+  - `alias -add share-note intent -activity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "note"`
+  - `alias -add tasker-work intent -broadcast -a net.dinglisch.android.tasker.ACTION_TASK -p net.dinglisch.android.taskerm --es task_name Work`
+
+### Intent Route Phase 2 - Discovery And Inspectability
+
+- Add `intent -check` before deeper workflow features.
+- Print matching handlers when possible:
+  - app label
+  - package
+  - activity/component
+  - whether the target appears launchable from current package visibility rules
+- Add useful error outputs:
+  - no handler found
+  - missing action/data
+  - invalid component
+  - invalid URI
+  - package visibility may prevent inspection
+- Consider a command for app activities only if needed:
+  - `apps -activities <app>`
+  - or keep this under `intent -check -p <package>`
+- Do not add a visual intent builder yet. This is a technical launcher; command docs and examples are enough for phase 2.
+
+## Next Strategic Route - Command-First File Manager Layer
+
+Goal: make Re:T-UI a real workstation file surface, not just a launcher that can occasionally open files.
+
+Distribution assumption:
+
+- Re:T-UI will prioritize GitHub/Firebase/community distribution over Play Store constraints.
+- `MANAGE_EXTERNAL_STORAGE` is acceptable for this route because file navigation becomes a core product capability.
+- The Play Store can be revisited later only if a separate restricted flavor is worth maintaining.
+
+Product boundary:
+
+- Re:T-UI owns navigation, suggestions, and terminal output.
+- Android intents handle external viewing/sharing/editing.
+- Termux remains optional for deeper scripting, not the default filesystem backend.
+- File commands should feel like a small shell, but stay readable and launcher-native.
+
+### File Manager Phase 1 - Stable Native Navigation
+
+- [x] Restore native `cd`, `pwd`, `ls`, and `open`.
+- [x] `cd` suggestions show directories in the current path.
+- [x] `open` and `share` suggestions show files in the current path.
+- [x] `open <file>` should open Android's chooser for files, not directories.
+- [x] Prevent known Re:T-UI commands from leaking into the embedded shell fallback.
+- [x] Add explicit `shell <command>` as the inspectable path for embedded shell execution.
+- [x] Add `shell_requires_prefix` behavior toggle.
+- [x] Default `shell_requires_prefix` to `true` so raw shell execution is intentional.
+- [ ] Verify `open <file>` on device after shell-fallback hard stop.
+- [ ] Add file-manager examples to `help cd`, `help ls`, `help open`, and the testbook.
+
+### File Manager Phase 2 - Deliberate File Actions
+
+- Add `file` as an inspectable command namespace only where it adds clarity.
+- Candidate actions:
+  - `file -info <file>`
+  - `file -rename <from> <to>`
+  - `file -copy <from> <to>`
+  - `file -move <from> <to>`
+  - `file -mkdir <name>`
+  - `file -rm <path>`
+- Sensitive actions should require a confirmation path before execution.
+- Keep `cd`, `pwd`, `ls`, `open`, and `share` as first-class shortcut commands.
+
+### File Manager Phase 3 - Suggestion Surfaces
+
+- Make current-directory suggestions context-aware:
+  - empty input can suggest common file actions when cwd is active
+  - `cd` suggests folders only
+  - `open` suggests openable files only
+  - `share` suggests files only
+  - `file -move` and `file -copy` can suggest destination folders
+- Add lightweight file metadata to suggestions if it remains visually clean:
+  - folder/file marker
+  - extension
+  - size for files
+  - modified date only if it does not clutter the strip
+
+### File Manager Phase 4 - Preview And Output Discipline
+
+- Add terminal-native previews for common text-ish files:
+  - `.txt`, `.md`, `.json`, `.csv`, `.log`, `.xml`
+- Add bounded output:
+  - first N lines
+  - `--tail`
+  - `--head`
+  - clear "file too large" messaging
+- Keep binary files routed through Android intents.
+
+### File Manager Phase 5 - Aliases And Workflows
+
+- Document file workflows as aliases:
+  - jump to downloads
+  - open latest PDF
+  - share latest screenshot
+  - clean temporary folder
+- Later: allow Re:T-UI Script to prompt for filenames/paths.
+- Keep destructive chained aliases inspectable before recommending them.
+
+### File Manager Phase 6 - Optional Termux Power Layer
+
+- Termux can be an advanced backend for explicit commands like grep/find/archive operations.
+- Do not make Termux required for core file navigation.
+- If added, keep it opt-in:
+  - `file_backend = native`
+  - `file_backend = termux`
+  - `file_backend = auto`
+- Re:T-UI should own cwd state even when Termux performs deeper work.
+- Preferred product shape:
+  - main Play Store Re:T-UI stays launcher/workstation focused
+  - advanced file management is positioned as a Termux power-user feature
+  - build a separate Re:T-UI Termux Bridge/Plugin rather than a headless file-manager permission proxy
+  - the bridge should expose narrow filesystem operations, not arbitrary command execution
+  - Re:T-UI owns command grammar, cwd state, suggestions, output, and confirmations
+  - Termux owns shell execution and filesystem access after the user explicitly configures it
+
+## Termux Bridge File Backend Rollout
+
+Goal: make advanced file management a Termux power-user option while keeping the Play Store Re:T-UI app focused on launcher/workstation behavior.
+
+### Termux Bridge Phase 1 - In-App Protocol Probe
+
+- [x] Add a `tbridge` command as the first inspectable bridge surface.
+- [x] Add `tbridge -status` for local readiness checks:
+  - Termux installed
+  - RUN_COMMAND declared by Termux
+  - RUN_COMMAND granted to Re:T-UI
+  - current Re:T-UI path
+- [x] Add `tbridge -setup` with exact user setup steps.
+- [x] Add `tbridge -probe` to run a lightweight Termux environment probe.
+- [x] Add Termux-backed listing probes:
+  - `tbridge -ls [path]`
+  - `tbridge -dirs [path]`
+  - `tbridge -files [path]`
+- [x] Route bridge results into the main output terminal rather than only the Termux console overlay.
+- [x] Phone-test with installed Termux 0.118.3.
+  - Fixed detection to check Termux's declared `RUN_COMMAND` permission/service rather than requested permissions.
+
+### Termux Bridge Phase 2 - Backend Abstraction
+
+- [x] Add `file_backend` behavior setting:
+  - `auto`
+  - `native`
+  - `termux`
+  - `off`
+- [x] Add initial backend resolver/status helper.
+- [x] Surface active backend state in `tbridge -status`.
+- Add a `FileBackend` boundary:
+  - native backend for GitHub/Firebase builds
+  - Termux bridge backend for Play-safe advanced file mode
+  - disabled/limited backend when neither is available
+- Re:T-UI should continue owning:
+  - cwd state
+  - command grammar
+  - suggestions
+  - output formatting
+  - confirmations
+
+### Termux Bridge Phase 3 - Suggestions
+
+- [x] Use Termux bridge output to power suggestions when active backend is Termux:
+  - [x] `cd` -> directories only
+  - [x] `open`/`share` -> files only
+  - future `file -copy`/`file -move` -> destination folders
+- [x] Cache recent directory/file listings briefly to avoid firing Termux on every keystroke.
+- Keep native suggestions as fallback in GitHub/Firebase builds.
+
+### Termux Bridge Phase 4 - File Actions
+
+- Add guarded Termux-backed actions:
+  - info/stat
+  - mkdir
+  - rename
+  - copy
+  - move
+  - delete with confirmation
+- Avoid arbitrary command execution through the bridge actions.
+- Keep `shell <command>` and `termux -run` as the explicit escape hatches for arbitrary commands.
+
+### Termux Bridge Phase 5 - Play Store Flavor
+
+- Remove `MANAGE_EXTERNAL_STORAGE` from the Play Store flavor.
+- Remove startup all-files permission gating from the Play Store flavor.
+- Keep `tbridge` available in the Play Store flavor as an optional power-user integration.
+- Present missing bridge setup as terminal output, not an onboarding modal.
+
+### Termux Bridge Phase 6 - Separate Companion/Plugin
+
+- Only after in-app protocol is stable, decide whether a separate Re:T-UI Termux Bridge APK is necessary.
+- If built, it must be a real user-facing integration app, not a permission proxy.
+- It should expose narrow, documented filesystem operations to Re:T-UI.
+
+### Intent Route Phase 3 - Docs And Shareable Patterns
+
+- Add wiki docs for intent command examples.
+- Document common recipes:
+  - open maps/search
+  - compose SMS/email
+  - share selected text
+  - open Android settings panels
+  - Tasker/MacroDroid broadcast trigger
+  - open specific app activity
+- Add warnings for app-specific intents:
+  - they can break when target apps update
+  - extras are often undocumented
+  - Android package visibility may affect discovery
+- Add testbook coverage for:
+  - valid activity intent
+  - valid broadcast intent
+  - invalid target
+  - alias calling an intent
+  - intent command inside an alias chain
+
+### Re:T-UI Script Phase 1 - Interactive Prompt Workflows
+
+- Add a small native scripting layer for users who want interactive workflows without Termux.
+- Treat it as a workflow macro language, not a general-purpose programming language.
+- Minimal primitives:
+  - `ask <name> "<prompt>"`
+  - `set <name> "<value>"`
+  - `run "<retui command>"`
+  - `output "<text>"`
+  - `confirm <name> "<prompt>"`
+- Variable substitution:
+  - `$name`
+  - quote-safe substitution for command arguments
+- Example target:
+  - `send-standup` asks for the standup text in the normal input surface, then sends that text through an Android share/send intent.
+- Example script:
+  - `ask note "Standup update"`
+  - `run "intent -activity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT \"$note\""`
+- Execution model:
+  - scripts run one step at a time
+  - `ask` pauses execution and changes the input prompt
+  - user input resumes the script
+  - cancellation should be possible with back/clear/ctrl-c equivalent
+- Storage:
+  - start with plain text files or an XML-backed registry, whichever fits existing command patterns best
+  - scripts should be inspectable from the launcher
+
+### Re:T-UI Script Phase 2 - Command Surface
+
+- Proposed command:
+  - `script -add <name>`
+  - `script -edit <name>`
+  - `script -show <name>`
+  - `script -ls`
+  - `script -rm <name>`
+  - `script -run <name>`
+- Decide whether scripts should register as direct commands:
+  - Option A: user runs `script -run send-standup`
+  - Option B: user runs `send-standup` directly after registration
+  - Option C: aliases call scripts explicitly
+- Preferred starting point:
+  - keep direct execution explicit through `script -run`
+  - allow aliases to hide that if the user wants a shorter command:
+    - `alias -add send-standup script -run send-standup`
+- Add suggestions:
+  - `script`
+  - script names after `script -run`
+  - active prompt suggestions only if script asks for constrained choices later
+
+### Re:T-UI Script Phase 3 - Control Flow, Carefully
+
+- Do not add loops in the first scripting release.
+- Consider only after phase 1 is stable:
+  - `if <var> == <value>`
+  - `else`
+  - `end`
+  - `choice <name> "Prompt" ["A","B","C"]`
+  - `abort "<message>"`
+- Keep failure behavior simple:
+  - command failure stops the script by default
+  - add `continue_on_error` only if users need it
+- Sensitive actions should support confirmation:
+  - uninstall
+  - destructive aliases
+  - broad broadcasts
+  - future explicit service calls
+
+### Re:T-UI Script Phase 4 - Modules And Suggestions Integration
+
+- Allow scripts to update module text through existing module primitives.
+- Allow scripts to emit output through the same terminal output path.
+- Consider script-owned suggestion chips only after script execution is stable.
+- Keep script modules and Re:T-UI Script separate concepts:
+  - script modules render status/output surfaces
+  - Re:T-UI Script orchestrates launcher commands and prompts
+- Avoid adding arbitrary code loading. Re:T-UI Script should only call Re:T-UI commands and approved primitives.
+
+### Re:T-UI Script Phase 5 - Sharing And Trust
+
+- Add export/import only after the language is stable.
+- Shared scripts must be plain-text inspectable before import.
+- Import should show:
+  - script name
+  - commands used
+  - intents/broadcasts used
+  - sensitive actions detected
+- Consider a trust warning for scripts that use:
+  - broadcasts
+  - uninstall/settings
+  - callbacks/tokens
+  - future service intents
+- Community sharing target:
+  - aliases
+  - intent examples
+  - Re:T-UI scripts
+  - modules
+  - themes/presets
+
 ## Completed In v325
 
 - Brightness permission flow

@@ -3,112 +3,16 @@ package ohi.andre.consolelauncher.commands.main.raw;
 import android.content.Intent;
 
 import ohi.andre.consolelauncher.R;
+import ohi.andre.consolelauncher.commands.CommandAbstraction;
 import ohi.andre.consolelauncher.commands.ExecutePack;
 import ohi.andre.consolelauncher.commands.main.MainPack;
-import ohi.andre.consolelauncher.commands.main.specific.ParamCommand;
 import ohi.andre.consolelauncher.commands.tuixt.ThemerActivity;
 import ohi.andre.consolelauncher.tuils.Tuils;
 
-public class settings extends ParamCommand {
-
-    private enum Param implements ohi.andre.consolelauncher.commands.main.Param {
-        appearance {
-            @Override
-            public String exec(ExecutePack pack) {
-                return openSettings(pack, ThemerActivity.SECTION_APPEARANCE);
-            }
-        },
-        behavior {
-            @Override
-            public String exec(ExecutePack pack) {
-                return openSettings(pack, ThemerActivity.SECTION_BEHAVIOR);
-            }
-        },
-        personalization {
-            @Override
-            public String exec(ExecutePack pack) {
-                return openSettings(pack, ThemerActivity.SECTION_PERSONALIZATION);
-            }
-        },
-        integrations {
-            @Override
-            public String exec(ExecutePack pack) {
-                return openSettings(pack, ThemerActivity.SECTION_INTEGRATIONS);
-            }
-        },
-        system {
-            @Override
-            public String exec(ExecutePack pack) {
-                return openSettings(pack, ThemerActivity.SECTION_SYSTEM);
-            }
-        };
-
-        @Override
-        public int[] args() {
-            return new int[0];
-        }
-
-        static Param get(String p) {
-            p = p.toLowerCase();
-            for (Param param : values()) {
-                if (matches(p, param.label())) {
-                    return param;
-                }
-            }
-            return null;
-        }
-
-        static boolean matches(String value, String label) {
-            if (value == null || label == null) {
-                return false;
-            }
-
-            if (value.endsWith(label)) {
-                return true;
-            }
-
-            if (label.startsWith(Tuils.MINUS)) {
-                return value.equals(label.substring(1));
-            }
-
-            return false;
-        }
-
-        static String[] labels() {
-            Param[] ps = values();
-            String[] ss = new String[ps.length];
-            for (int count = 0; count < ps.length; count++) {
-                ss[count] = ps[count].label();
-            }
-            return ss;
-        }
-
-        @Override
-        public String label() {
-            return Tuils.MINUS + name();
-        }
-
-        @Override
-        public String onNotArgEnough(ExecutePack pack, int n) {
-            return pack.context.getString(R.string.help_settings);
-        }
-
-        @Override
-        public String onArgNotFound(ExecutePack pack, int index) {
-            return pack.context.getString(R.string.help_settings);
-        }
-    }
+public class settings implements CommandAbstraction {
 
     @Override
-    protected ohi.andre.consolelauncher.commands.main.Param paramForString(MainPack pack, String param) {
-        return Param.get(param);
-    }
-
-    @Override
-    protected String doThings(ExecutePack pack) {
-        if (pack.get(ohi.andre.consolelauncher.commands.main.Param.class, 0) != null) {
-            return null;
-        }
+    public String exec(ExecutePack pack) {
         return openSettings(pack, ThemerActivity.SECTION_HOME);
     }
 
@@ -121,8 +25,8 @@ public class settings extends ParamCommand {
     }
 
     @Override
-    public String[] params() {
-        return Param.labels();
+    public int[] argType() {
+        return new int[0];
     }
 
     @Override
@@ -133,5 +37,15 @@ public class settings extends ParamCommand {
     @Override
     public int helpRes() {
         return R.string.help_settings;
+    }
+
+    @Override
+    public String onArgNotFound(ExecutePack pack, int index) {
+        return pack.context.getString(R.string.help_settings);
+    }
+
+    @Override
+    public String onNotArgEnough(ExecutePack pack, int nArgs) {
+        return exec(pack);
     }
 }

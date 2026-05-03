@@ -198,6 +198,24 @@
     <string name="output_flashlightnotavailable">Your device doesn\'t support flashlight</string>
 
     <string name="help_termux">Open the Re:T-UI Termux console.\n\nUsage:\ntermux\ntermux -status\ntermux -setup\ntermux -open\ntermux -run &lt;script_path&gt; [args...]\n\nInside the console:\nstatus, setup, open, run, help, clear, exit\n\nFor script modules:\nmodule -add server termux:/data/data/com.termux/files/home/retui/server-health.sh\nmodule -refresh server</string>
+    <string name="help_files">Open Re:T-UI Files.
+        \nUsage:
+        \n$ files
+        \n$ files &lt;command&gt;
+        \n\nLaunches the Re:T-UI Files app with the current path, theme colors, terminal background, top margin, and font.
+    </string>
+    <string name="help_tbridge">Use Termux as Re:T-UI\'s power-user file backend.
+        \nUsage:
+        \ntbridge -status
+        \ntbridge -setup
+        \ntbridge -probe
+        \ntbridge -ls [path]
+        \ntbridge -dirs [path]
+        \ntbridge -files [path]
+        \n\nConfig:
+        \nconfig -set file_backend auto|native|termux|off
+        \n\nThis bridge requires Termux, RUN_COMMAND permission, allow-external-apps=true, and termux-setup-storage for shared storage.
+    </string>
     <string name="help_retuitoken">Manage the Re:T-UI callback token for Termux, Tasker, and future modules.
         \n\nUsage:
         \n$ retui-token -status
@@ -247,9 +265,9 @@
         \n-theme -> inspect effective theme, auto color, and font state
         \n-presets -> inspect preset directory and available presets
     </string>
-    <string name="help_settings">-appearance -> open appearance settings
-        \n-music -> open music settings
-        \n(no args) -> open the Re:T-UI settings hub
+    <string name="help_settings">Open the Re:T-UI settings/Themer overlay.
+        \n\nUsage:
+        \n$ settings
     </string>
     <string name="help_wallpaper">-static -> open the static wallpaper picker
         \n-live -> open the live wallpaper picker
@@ -535,10 +553,44 @@
         \n-file -> open the file rss.xml</string>
 
     <!-- linux -->
+    <string name="help_cd">Change Re:T-UI\'s current file path.
+        \nUsage:
+        \n$ cd [folder]
+        \n$ cd ..
+        \n$ cd /sdcard/Download
+    </string>
+    <string name="help_ls">List files and folders in the current path or selected folder.
+        \nUsage:
+        \n$ ls
+        \n$ ls [folder]
+    </string>
+    <string name="help_pwd">Print Re:T-UI\'s current file path.</string>
     <string name="help_ctrlc">Interrupt the current shell process and create a new one</string>
+    <string name="help_shell">Run an explicit embedded shell command.
+        \nUsage:
+        \n$ shell [command]
+        \nExamples:
+        \n$ shell pwd
+        \n$ shell ls
+        \n$ shell cd ..
+        \n$ shell grep query file.txt
+    </string>
     <string name="help_open">Open a file
         \nUsage:
         \n$ open [pathToFile]
+        \n$ termux-open [pathToFile]
+    </string>
+    <string name="help_intent">Dispatch Android intents from Re:T-UI.
+        \nUsage:
+        \n$ intent -view &lt;uri&gt;
+        \n$ intent -activity -a &lt;action&gt; [-d &lt;data&gt;] [-t &lt;mime&gt;] [-p &lt;package&gt;] [-n &lt;package/class&gt;] [--es key value] [--ei key value] [--ez key true|false]
+        \n$ intent -broadcast -a &lt;action&gt; [-p &lt;package&gt;] [-n &lt;package/class&gt;] [--es key value]
+        \n$ intent -uri &lt;intent-uri&gt;
+        \n$ intent -check ...
+        \nExamples:
+        \n$ intent -view geo:0,0?q=home
+        \n$ intent -activity -a android.intent.action.SEND -t text/plain --es android.intent.extra.TEXT "standup notes"
+        \n$ intent -broadcast -a net.dinglisch.android.tasker.ACTION_TASK -p net.dinglisch.android.taskerm --es task_name Work
     </string>
 
     <string name="help_username">Change the username and device name: username [new_user] [new_device]</string>
