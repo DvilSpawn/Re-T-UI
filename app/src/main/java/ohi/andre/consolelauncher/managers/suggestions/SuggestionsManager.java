@@ -37,12 +37,14 @@ import ohi.andre.consolelauncher.commands.CommandAbstraction;
 import ohi.andre.consolelauncher.commands.CommandTuils;
 import ohi.andre.consolelauncher.commands.main.MainPack;
 import ohi.andre.consolelauncher.commands.main.Param;
+import ohi.andre.consolelauncher.commands.main.raw.tbridge;
 import ohi.andre.consolelauncher.commands.main.specific.ParamCommand;
 import ohi.andre.consolelauncher.commands.main.specific.PermanentSuggestionCommand;
 import ohi.andre.consolelauncher.managers.AliasManager;
 import ohi.andre.consolelauncher.managers.AppsManager;
 import ohi.andre.consolelauncher.managers.ContactManager;
 import ohi.andre.consolelauncher.managers.FileManager;
+import ohi.andre.consolelauncher.managers.file.FileBackendManager;
 import ohi.andre.consolelauncher.managers.PresetManager;
 import ohi.andre.consolelauncher.managers.RssManager;
 import ohi.andre.consolelauncher.managers.TerminalManager;
@@ -52,6 +54,8 @@ import ohi.andre.consolelauncher.managers.notifications.reply.BoundApp;
 import ohi.andre.consolelauncher.managers.notifications.reply.ReplyManager;
 import ohi.andre.consolelauncher.managers.WebhookManager;
 import ohi.andre.consolelauncher.managers.modules.ModuleManager;
+import ohi.andre.consolelauncher.managers.termux.TermuxBridgeCache;
+import ohi.andre.consolelauncher.managers.termux.TermuxBridgeManager;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.classes.XMLPrefsSave;
 import ohi.andre.consolelauncher.managers.xml.options.Apps;
@@ -1393,6 +1397,11 @@ public class SuggestionsManager {
     }
 
     private void suggestOpenableFile(MainPack info, List<Suggestion> suggestions, String afterLastSpace, String beforeLastSpace) {
+        if (FileBackendManager.activeBackend(info.context) == FileBackendManager.Active.TERMUX) {
+            suggestTermuxFiles(info, suggestions, afterLastSpace, beforeLastSpace);
+            return;
+        }
+
         boolean noAfterLastSpace = afterLastSpace == null || afterLastSpace.length() == 0;
         if (noAfterLastSpace) {
             suggestFilesOnlyInDir(null, suggestions, info.currentDirectory, beforeLastSpace);
@@ -1425,6 +1434,11 @@ public class SuggestionsManager {
     }
 
     private void suggestDirectory(MainPack info, List<Suggestion> suggestions, String afterLastSpace, String beforeLastSpace) {
+        if (FileBackendManager.activeBackend(info.context) == FileBackendManager.Active.TERMUX) {
+            suggestTermuxDirs(info, suggestions, afterLastSpace, beforeLastSpace);
+            return;
+        }
+
         boolean noAfterLastSpace = afterLastSpace == null || afterLastSpace.length() == 0;
         if (noAfterLastSpace || "..".startsWith(afterLastSpace)) {
             suggestions.add(new Suggestion(beforeLastSpace, "..", false, Suggestion.TYPE_FILE));
@@ -1461,6 +1475,82 @@ public class SuggestionsManager {
         String holder = afterLastSpace.substring(0, afterLastSpace.lastIndexOf(File.separator) + 1);
         String leaf = clean.substring(index + 1);
         suggestDirsInDir(suggestions, dirInfo.file, leaf, beforeLastSpace, holder);
+    }
+
+    private void suggestTermuxDirs(MainPack info, List<Suggestion> suggestions, String afterLastSpace, String beforeLastSpace) {
+        boolean noAfterLastSpace = afterLastSpace == null || afterLastSpace.length() == 0;
+        if (noAfterLastSpace || "..".startsWith(afterLastSpace)) {
+            suggestions.add(new Suggestion(beforeLastSpace, "..", false, Suggestion.TYPE_FILE));
+        }
+        if (noAfterLastSpace || File.separator.startsWith(afterLastSpace)) {
+            suggestions.add(new Suggestion(beforeLastSpace, File.separator, false, Suggestion.TYPE_FILE, afterLastSpace));
+        }
+
+        TermuxSuggestionTarget target = termuxTarget(info.currentDirectory, afterLastSpace);
+        requestTermuxListing(info, "dirs", target.dir);
+        addTermuxMatches(TermuxBridgeCache.dirs(target.dir), target.leaf, suggestions, beforeLastSpace, target.holder);
+    }
+
+    private void suggestTermuxFiles(MainPack info, List<Suggestion> suggestions, String afterLastSpace, String beforeLastSpace) {
+        TermuxSuggestionTarget target = termuxTarget(info.currentDirectory, afterLastSpace);
+        requestTermuxListing(info, "files", target.dir);
+        addTermuxMatches(TermuxBridgeCache.files(target.dir), target.leaf, suggestions, beforeLastSpace, target.holder);
+    }
+
+    private void requestTermuxListing(MainPack info, String type, String path) {
+        if (!TermuxBridgeCache.shouldRequest(type, path)) {
+            return;
+        }
+        String script = "dirs".equals(type) ? tbridge.LIST_DIRS_SCRIPT : tbridge.LIST_FILES_SCRIPT;
+        TermuxBridgeManager.dispatchShell(info.context, type + " " + path, script, TermuxBridgeManager.TERMUX_HOME, "retui-" + type, path);
+    }
+
+    private TermuxSuggestionTarget termuxTarget(File currentDirectory, String afterLastSpace) {
+        if (afterLastSpace == null || afterLastSpace.trim().length() == 0) {
+            return new TermuxSuggestionTarget(currentDirectory.getAbsolutePath(), Tuils.EMPTYSTRING, null);
+        }
+
+        String original = afterLastSpace;
+        String clean = rmQuotes.matcher(afterLastSpace).replaceAll(Tuils.EMPTYSTRING);
+        if (clean.endsWith(File.separator)) {
+            File dir = clean.startsWith(File.separator) ? new File(clean) : new File(currentDirectory, clean);
+            return new TermuxSuggestionTarget(dir.getAbsolutePath(), Tuils.EMPTYSTRING, original);
+        }
+
+        int index = clean.lastIndexOf(File.separator);
+        if (index < 0) {
+            return new TermuxSuggestionTarget(currentDirectory.getAbsolutePath(), clean, null);
+        }
+
+        String base = clean.substring(0, index);
+        String holder = original.substring(0, original.lastIndexOf(File.separator) + 1);
+        String leaf = clean.substring(index + 1);
+        File dir = base.startsWith(File.separator) ? new File(base) : new File(currentDirectory, base);
+        return new TermuxSuggestionTarget(dir.getAbsolutePath(), leaf, holder);
+    }
+
+    private void addTermuxMatches(List<String> values, String leaf, List<Suggestion> suggestions, String beforeLastSpace, String holder) {
+        String temp = leaf == null ? Tuils.EMPTYSTRING : leaf;
+        int counter = quickCompare(temp, values.toArray(new String[0]), suggestions, beforeLastSpace, suggestionsPerCategory, false, Suggestion.TYPE_FILE, false);
+        if (suggestionsPerCategory - counter <= 0) {
+            return;
+        }
+        String[] matches = CompareStrings.topMatchesWithDeadline(temp, values.toArray(new String[0]), suggestionsPerCategory - counter, suggestionsDeadline, FILE_SPLITTERS, algInstance, alg);
+        for (String match : matches) {
+            suggestions.add(new Suggestion(beforeLastSpace, match, false, Suggestion.TYPE_FILE, holder));
+        }
+    }
+
+    private static class TermuxSuggestionTarget {
+        final String dir;
+        final String leaf;
+        final String holder;
+
+        TermuxSuggestionTarget(String dir, String leaf, String holder) {
+            this.dir = dir;
+            this.leaf = leaf;
+            this.holder = holder;
+        }
     }
 
     private void suggestFilesInDir(List<Suggestion> suggestions, File dir, String afterLastSeparator, String beforeLastSpace, String afterLastSpaceWithoutALS) {

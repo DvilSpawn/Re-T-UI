@@ -10,6 +10,8 @@ import ohi.andre.consolelauncher.commands.ExecutePack;
 import ohi.andre.consolelauncher.commands.main.MainPack;
 import ohi.andre.consolelauncher.managers.FileManager;
 import ohi.andre.consolelauncher.managers.TerminalManager;
+import ohi.andre.consolelauncher.managers.file.FileBackendManager;
+import ohi.andre.consolelauncher.managers.termux.TermuxBridgeManager;
 import ohi.andre.consolelauncher.tuils.Tuils;
 
 public class open implements CommandAbstraction {
@@ -18,6 +20,15 @@ public class open implements CommandAbstraction {
     public String exec(ExecutePack pack) {
         MainPack info = (MainPack) pack;
         String path = info.getString();
+        if (FileBackendManager.activeBackend(info.context) == FileBackendManager.Active.TERMUX) {
+            String resolved = resolvePath(info.currentDirectory, path);
+            if (resolved == null) {
+                return info.res.getString(helpRes());
+            }
+            TermuxBridgeManager.dispatchShell(info.context, "open " + resolved, tbridge.OPEN_FILE_SCRIPT, TermuxBridgeManager.TERMUX_HOME, "retui-open", resolved);
+            return "Termux bridge opening file: " + resolved;
+        }
+
         File file = resolve(info.currentDirectory, path);
         if (file == null || !file.exists()) {
             return info.res.getString(R.string.output_filenotfound);
@@ -31,6 +42,15 @@ public class open implements CommandAbstraction {
 
         Tuils.sendOutput(info.context, "Opening: " + file.getName(), TerminalManager.CATEGORY_OUTPUT);
         return null;
+    }
+
+    private String resolvePath(File currentDirectory, String path) {
+        if (path == null || path.trim().length() == 0) {
+            return null;
+        }
+        path = path.trim();
+        File file = path.startsWith(File.separator) ? new File(path) : new File(currentDirectory, path);
+        return file.getAbsolutePath();
     }
 
     private File resolve(File currentDirectory, String path) {

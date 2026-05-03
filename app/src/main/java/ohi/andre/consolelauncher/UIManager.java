@@ -100,6 +100,7 @@ import ohi.andre.consolelauncher.managers.settings.MusicSettings;
 import ohi.andre.consolelauncher.managers.settings.NotificationSettings;
 import ohi.andre.consolelauncher.managers.suggestions.SuggestionTextWatcher;
 import ohi.andre.consolelauncher.managers.suggestions.SuggestionsManager;
+import ohi.andre.consolelauncher.managers.termux.TermuxBridgeCache;
 import ohi.andre.consolelauncher.managers.termux.TermuxBridgeManager;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.options.Behavior;
@@ -2506,6 +2507,23 @@ public class UIManager implements OnTouchListener {
 
     private void sendTermuxBridgeResult(String path, String stdout, String stderr, String error, int exitCode, String debug) {
         String label = path.substring(TermuxBridgeManager.RESULT_PREFIX.length());
+        if (label.startsWith("cd ") && exitCode == 0 && stdout != null && stdout.trim().length() > 0) {
+            String newPath = stdout.trim().split("\\n")[0].trim();
+            File folder = new File(newPath);
+            mainPack.currentDirectory = folder;
+            if (MainManager.interactive != null) {
+                MainManager.interactive.addCommand("cd '" + folder.getAbsolutePath().replace("'", "'\\''") + "'");
+            }
+            LocalBroadcastManager.getInstance(mContext.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_UPDATE_HINT));
+        }
+        if (label.startsWith("dirs ") && exitCode == 0) {
+            TermuxBridgeCache.putDirs(label.substring(5), stdout);
+            LocalBroadcastManager.getInstance(mContext.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_UPDATE_SUGGESTIONS));
+        } else if (label.startsWith("files ") && exitCode == 0) {
+            TermuxBridgeCache.putFiles(label.substring(6), stdout);
+            LocalBroadcastManager.getInstance(mContext.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_UPDATE_SUGGESTIONS));
+        }
+
         StringBuilder builder = new StringBuilder();
         builder.append("Termux bridge: ").append(label);
         if (exitCode != Integer.MIN_VALUE) {

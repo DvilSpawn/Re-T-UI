@@ -357,11 +357,11 @@ Goal: make advanced file management a Termux power-user option while keeping the
 
 ### Termux Bridge Phase 3 - Suggestions
 
-- Use Termux bridge output to power suggestions:
-  - `cd` -> directories only
-  - `open`/`share` -> files only
+- [x] Use Termux bridge output to power suggestions when active backend is Termux:
+  - [x] `cd` -> directories only
+  - [x] `open`/`share` -> files only
   - future `file -copy`/`file -move` -> destination folders
-- Cache recent directory listings briefly to avoid firing Termux on every keystroke.
+- [x] Cache recent directory/file listings briefly to avoid firing Termux on every keystroke.
 - Keep native suggestions as fallback in GitHub/Firebase builds.
 
 ### Termux Bridge Phase 4 - File Actions

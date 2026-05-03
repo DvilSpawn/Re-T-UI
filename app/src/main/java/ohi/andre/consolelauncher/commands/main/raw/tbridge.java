@@ -11,16 +11,29 @@ import ohi.andre.consolelauncher.managers.termux.TermuxBridgeManager;
 
 public class tbridge implements CommandAbstraction {
 
-    private static final String LIST_DIRS_SCRIPT =
+    public static final String CD_SCRIPT =
+            "target=\"$1\"; [ -d \"$target\" ] || { echo \"not a directory: $target\" >&2; exit 2; }; "
+                    + "cd \"$target\" && pwd";
+    public static final String LIST_DIRS_SCRIPT =
             "dir=\"$1\"; [ -d \"$dir\" ] || { echo \"not a directory: $dir\" >&2; exit 2; }; "
                     + "find \"$dir\" -mindepth 1 -maxdepth 1 -type d -printf '%f/\\n' 2>/dev/null | sort";
-    private static final String LIST_FILES_SCRIPT =
+    public static final String LIST_FILES_SCRIPT =
             "dir=\"$1\"; [ -d \"$dir\" ] || { echo \"not a directory: $dir\" >&2; exit 2; }; "
                     + "find \"$dir\" -mindepth 1 -maxdepth 1 -type f -printf '%f\\n' 2>/dev/null | sort";
-    private static final String LIST_ALL_SCRIPT =
+    public static final String LIST_ALL_SCRIPT =
             "dir=\"$1\"; [ -d \"$dir\" ] || { echo \"not a directory: $dir\" >&2; exit 2; }; "
                     + "{ find \"$dir\" -mindepth 1 -maxdepth 1 -type d -printf '%f/\\n' 2>/dev/null; "
                     + "find \"$dir\" -mindepth 1 -maxdepth 1 -type f -printf '%f\\n' 2>/dev/null; } | sort";
+    public static final String OPEN_FILE_SCRIPT =
+            "target=\"$1\"; [ -e \"$target\" ] || { echo \"not found: $target\" >&2; exit 2; }; "
+                    + "[ -f \"$target\" ] || { echo \"is directory: $target\" >&2; exit 3; }; "
+                    + "command -v termux-open >/dev/null || { echo \"termux-open missing\" >&2; exit 4; }; "
+                    + "termux-open \"$target\" && printf 'opening %s\\n' \"$target\"";
+    public static final String SHARE_FILE_SCRIPT =
+            "target=\"$1\"; [ -e \"$target\" ] || { echo \"not found: $target\" >&2; exit 2; }; "
+                    + "[ -f \"$target\" ] || { echo \"is directory: $target\" >&2; exit 3; }; "
+                    + "if command -v termux-share >/dev/null; then termux-share \"$target\" && printf 'sharing %s\\n' \"$target\"; "
+                    + "else echo \"termux-share missing; install Termux:API for share support\" >&2; exit 4; fi";
     private static final String STATUS_SCRIPT =
             "printf 'termux_home=%s\\n' \"$HOME\"; "
                     + "printf 'pwd=%s\\n' \"$PWD\"; "
