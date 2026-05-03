@@ -100,6 +100,7 @@ import ohi.andre.consolelauncher.managers.settings.MusicSettings;
 import ohi.andre.consolelauncher.managers.settings.NotificationSettings;
 import ohi.andre.consolelauncher.managers.suggestions.SuggestionTextWatcher;
 import ohi.andre.consolelauncher.managers.suggestions.SuggestionsManager;
+import ohi.andre.consolelauncher.managers.termux.TermuxBridgeManager;
 import ohi.andre.consolelauncher.managers.xml.XMLPrefsManager;
 import ohi.andre.consolelauncher.managers.xml.options.Behavior;
 import ohi.andre.consolelauncher.managers.xml.options.Notifications;
@@ -2464,6 +2465,11 @@ public class UIManager implements OnTouchListener {
         String debug = intent.getStringExtra(EXTRA_TERMUX_RESULT_DEBUG);
         String module = intent.getStringExtra(EXTRA_TERMUX_RESULT_MODULE);
 
+        if (!TextUtils.isEmpty(path) && path.startsWith(TermuxBridgeManager.RESULT_PREFIX)) {
+            sendTermuxBridgeResult(path, stdout, stderr, error, exitCode, debug);
+            return;
+        }
+
         if (!TextUtils.isEmpty(module)) {
             updateModuleFromTermuxResult(module, stdout, stderr, error, exitCode);
             if (termuxOverlay == null || termuxOverlay.getVisibility() != View.VISIBLE) {
@@ -2496,6 +2502,28 @@ public class UIManager implements OnTouchListener {
                 && (error == null || error.trim().length() == 0)) {
             appendTermuxLine("no output returned.");
         }
+    }
+
+    private void sendTermuxBridgeResult(String path, String stdout, String stderr, String error, int exitCode, String debug) {
+        String label = path.substring(TermuxBridgeManager.RESULT_PREFIX.length());
+        StringBuilder builder = new StringBuilder();
+        builder.append("Termux bridge: ").append(label);
+        if (exitCode != Integer.MIN_VALUE) {
+            builder.append("\nexit: ").append(exitCode);
+        }
+        if (stdout != null && stdout.trim().length() > 0) {
+            builder.append("\n").append(stdout.trim());
+        }
+        if (stderr != null && stderr.trim().length() > 0) {
+            builder.append("\nstderr:\n").append(stderr.trim());
+        }
+        if (error != null && error.trim().length() > 0) {
+            builder.append("\nerror: ").append(error.trim());
+        }
+        if (debug != null && debug.trim().length() > 0) {
+            builder.append("\ndebug: ").append(debug.trim());
+        }
+        Tuils.sendOutput(mContext, builder.toString(), TerminalManager.CATEGORY_OUTPUT);
     }
 
     private void updateModuleFromTermuxResult(String module, String stdout, String stderr, String error, int exitCode) {

@@ -313,6 +313,76 @@ Product boundary:
   - Re:T-UI owns command grammar, cwd state, suggestions, output, and confirmations
   - Termux owns shell execution and filesystem access after the user explicitly configures it
 
+## Termux Bridge File Backend Rollout
+
+Goal: make advanced file management a Termux power-user option while keeping the Play Store Re:T-UI app focused on launcher/workstation behavior.
+
+### Termux Bridge Phase 1 - In-App Protocol Probe
+
+- [x] Add a `tbridge` command as the first inspectable bridge surface.
+- [x] Add `tbridge -status` for local readiness checks:
+  - Termux installed
+  - RUN_COMMAND declared by Termux
+  - RUN_COMMAND granted to Re:T-UI
+  - current Re:T-UI path
+- [x] Add `tbridge -setup` with exact user setup steps.
+- [x] Add `tbridge -probe` to run a lightweight Termux environment probe.
+- [x] Add Termux-backed listing probes:
+  - `tbridge -ls [path]`
+  - `tbridge -dirs [path]`
+  - `tbridge -files [path]`
+- [x] Route bridge results into the main output terminal rather than only the Termux console overlay.
+- [ ] Phone-test with both Play/F-Droid Termux if available.
+
+### Termux Bridge Phase 2 - Backend Abstraction
+
+- Add a `FileBackend` boundary:
+  - native backend for GitHub/Firebase builds
+  - Termux bridge backend for Play-safe advanced file mode
+  - disabled/limited backend when neither is available
+- Add behavior setting:
+  - `file_backend = native | termux | auto | off`
+- Re:T-UI should continue owning:
+  - cwd state
+  - command grammar
+  - suggestions
+  - output formatting
+  - confirmations
+
+### Termux Bridge Phase 3 - Suggestions
+
+- Use Termux bridge output to power suggestions:
+  - `cd` -> directories only
+  - `open`/`share` -> files only
+  - future `file -copy`/`file -move` -> destination folders
+- Cache recent directory listings briefly to avoid firing Termux on every keystroke.
+- Keep native suggestions as fallback in GitHub/Firebase builds.
+
+### Termux Bridge Phase 4 - File Actions
+
+- Add guarded Termux-backed actions:
+  - info/stat
+  - mkdir
+  - rename
+  - copy
+  - move
+  - delete with confirmation
+- Avoid arbitrary command execution through the bridge actions.
+- Keep `shell <command>` and `termux -run` as the explicit escape hatches for arbitrary commands.
+
+### Termux Bridge Phase 5 - Play Store Flavor
+
+- Remove `MANAGE_EXTERNAL_STORAGE` from the Play Store flavor.
+- Remove startup all-files permission gating from the Play Store flavor.
+- Keep `tbridge` available in the Play Store flavor as an optional power-user integration.
+- Present missing bridge setup as terminal output, not an onboarding modal.
+
+### Termux Bridge Phase 6 - Separate Companion/Plugin
+
+- Only after in-app protocol is stable, decide whether a separate Re:T-UI Termux Bridge APK is necessary.
+- If built, it must be a real user-facing integration app, not a permission proxy.
+- It should expose narrow, documented filesystem operations to Re:T-UI.
+
 ### Intent Route Phase 3 - Docs And Shareable Patterns
 
 - Add wiki docs for intent command examples.

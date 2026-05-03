@@ -1016,6 +1016,15 @@ public class SuggestionsManager {
             suggestions.add(new Suggestion(null, "termux -run", false, Suggestion.TYPE_PERMANENT));
         }
 
+        if ("tbridge".startsWith(lower)) {
+            suggestions.add(new Suggestion(null, "tbridge -status", true, Suggestion.TYPE_PERMANENT));
+            suggestions.add(new Suggestion(null, "tbridge -setup", true, Suggestion.TYPE_PERMANENT));
+            suggestions.add(new Suggestion(null, "tbridge -probe", true, Suggestion.TYPE_PERMANENT));
+            suggestions.add(new Suggestion(null, "tbridge -ls", false, Suggestion.TYPE_PERMANENT));
+            suggestions.add(new Suggestion(null, "tbridge -dirs", false, Suggestion.TYPE_PERMANENT));
+            suggestions.add(new Suggestion(null, "tbridge -files", false, Suggestion.TYPE_PERMANENT));
+        }
+
         if ("shell".startsWith(lower)) {
             suggestions.add(new Suggestion(null, "shell", false, Suggestion.TYPE_PERMANENT));
             suggestions.add(new Suggestion(null, "shell pwd", true, Suggestion.TYPE_PERMANENT));
@@ -1075,6 +1084,12 @@ public class SuggestionsManager {
             suggestions.add(new Suggestion(beforeLastSpace, "-run", false, Suggestion.TYPE_COMMAND));
         } else if ("termux -run".equals(normalized) || "termux run".equals(normalized)) {
             suggestScopedAliases(pack.aliasManager, suggestions, afterLastSpace, beforeLastSpace, AliasManager.SCOPE_SCRIPT);
+        } else if ("tbridge".equals(normalized)) {
+            for (String option : new String[]{"-status", "-setup", "-probe", "-ls", "-dirs", "-files"}) {
+                if (afterLastSpace == null || afterLastSpace.isEmpty() || option.startsWith(afterLastSpace.toLowerCase())) {
+                    suggestions.add(new Suggestion(beforeLastSpace, option, option.equals("-status") || option.equals("-setup") || option.equals("-probe"), Suggestion.TYPE_COMMAND));
+                }
+            }
         } else if ("shell".equals(normalized)) {
             for (String option : new String[]{"pwd", "ls", "cd", "cd ..", "echo", "cat", "grep", "find"}) {
                 if (afterLastSpace == null || afterLastSpace.isEmpty() || option.startsWith(afterLastSpace.toLowerCase())) {

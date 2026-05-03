@@ -198,6 +198,16 @@
     <string name="output_flashlightnotavailable">Your device doesn\'t support flashlight</string>
 
     <string name="help_termux">Open the Re:T-UI Termux console.\n\nUsage:\ntermux\ntermux -status\ntermux -setup\ntermux -open\ntermux -run &lt;script_path&gt; [args...]\n\nInside the console:\nstatus, setup, open, run, help, clear, exit\n\nFor script modules:\nmodule -add server termux:/data/data/com.termux/files/home/retui/server-health.sh\nmodule -refresh server</string>
+    <string name="help_tbridge">Use Termux as Re:T-UI\'s power-user file backend.
+        \nUsage:
+        \ntbridge -status
+        \ntbridge -setup
+        \ntbridge -probe
+        \ntbridge -ls [path]
+        \ntbridge -dirs [path]
+        \ntbridge -files [path]
+        \n\nThis bridge requires Termux, RUN_COMMAND permission, allow-external-apps=true, and termux-setup-storage for shared storage.
+    </string>
     <string name="help_retuitoken">Manage the Re:T-UI callback token for Termux, Tasker, and future modules.
         \n\nUsage:
         \n$ retui-token -status
