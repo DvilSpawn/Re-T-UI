@@ -218,6 +218,101 @@ The product boundary:
   - or keep this under `intent -check -p <package>`
 - Do not add a visual intent builder yet. This is a technical launcher; command docs and examples are enough for phase 2.
 
+## Next Strategic Route - Command-First File Manager Layer
+
+Goal: make Re:T-UI a real workstation file surface, not just a launcher that can occasionally open files.
+
+Distribution assumption:
+
+- Re:T-UI will prioritize GitHub/Firebase/community distribution over Play Store constraints.
+- `MANAGE_EXTERNAL_STORAGE` is acceptable for this route because file navigation becomes a core product capability.
+- The Play Store can be revisited later only if a separate restricted flavor is worth maintaining.
+
+Product boundary:
+
+- Re:T-UI owns navigation, suggestions, and terminal output.
+- Android intents handle external viewing/sharing/editing.
+- Termux remains optional for deeper scripting, not the default filesystem backend.
+- File commands should feel like a small shell, but stay readable and launcher-native.
+
+### File Manager Phase 1 - Stable Native Navigation
+
+- [x] Restore native `cd`, `pwd`, `ls`, and `open`.
+- [x] `cd` suggestions show directories in the current path.
+- [x] `open` and `share` suggestions show files in the current path.
+- [x] `open <file>` should open Android's chooser for files, not directories.
+- [x] Prevent known Re:T-UI commands from leaking into the embedded shell fallback.
+- [x] Add explicit `shell <command>` as the inspectable path for embedded shell execution.
+- [x] Add `shell_requires_prefix` behavior toggle.
+- [x] Default `shell_requires_prefix` to `true` so raw shell execution is intentional.
+- [ ] Verify `open <file>` on device after shell-fallback hard stop.
+- [ ] Add file-manager examples to `help cd`, `help ls`, `help open`, and the testbook.
+
+### File Manager Phase 2 - Deliberate File Actions
+
+- Add `file` as an inspectable command namespace only where it adds clarity.
+- Candidate actions:
+  - `file -info <file>`
+  - `file -rename <from> <to>`
+  - `file -copy <from> <to>`
+  - `file -move <from> <to>`
+  - `file -mkdir <name>`
+  - `file -rm <path>`
+- Sensitive actions should require a confirmation path before execution.
+- Keep `cd`, `pwd`, `ls`, `open`, and `share` as first-class shortcut commands.
+
+### File Manager Phase 3 - Suggestion Surfaces
+
+- Make current-directory suggestions context-aware:
+  - empty input can suggest common file actions when cwd is active
+  - `cd` suggests folders only
+  - `open` suggests openable files only
+  - `share` suggests files only
+  - `file -move` and `file -copy` can suggest destination folders
+- Add lightweight file metadata to suggestions if it remains visually clean:
+  - folder/file marker
+  - extension
+  - size for files
+  - modified date only if it does not clutter the strip
+
+### File Manager Phase 4 - Preview And Output Discipline
+
+- Add terminal-native previews for common text-ish files:
+  - `.txt`, `.md`, `.json`, `.csv`, `.log`, `.xml`
+- Add bounded output:
+  - first N lines
+  - `--tail`
+  - `--head`
+  - clear "file too large" messaging
+- Keep binary files routed through Android intents.
+
+### File Manager Phase 5 - Aliases And Workflows
+
+- Document file workflows as aliases:
+  - jump to downloads
+  - open latest PDF
+  - share latest screenshot
+  - clean temporary folder
+- Later: allow Re:T-UI Script to prompt for filenames/paths.
+- Keep destructive chained aliases inspectable before recommending them.
+
+### File Manager Phase 6 - Optional Termux Power Layer
+
+- Termux can be an advanced backend for explicit commands like grep/find/archive operations.
+- Do not make Termux required for core file navigation.
+- If added, keep it opt-in:
+  - `file_backend = native`
+  - `file_backend = termux`
+  - `file_backend = auto`
+- Re:T-UI should own cwd state even when Termux performs deeper work.
+- Preferred product shape:
+  - main Play Store Re:T-UI stays launcher/workstation focused
+  - advanced file management is positioned as a Termux power-user feature
+  - build a separate Re:T-UI Termux Bridge/Plugin rather than a headless file-manager permission proxy
+  - the bridge should expose narrow filesystem operations, not arbitrary command execution
+  - Re:T-UI owns command grammar, cwd state, suggestions, output, and confirmations
+  - Termux owns shell execution and filesystem access after the user explicitly configures it
+
 ### Intent Route Phase 3 - Docs And Shareable Patterns
 
 - Add wiki docs for intent command examples.

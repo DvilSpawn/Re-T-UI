@@ -137,6 +137,9 @@ public class MainManager {
 
     public static int commandCount = 0;
 
+    private static final int SHELL_CD_CODE = 20;
+    private static final int SHELL_PWD_CODE = 21;
+
     private boolean keeperServiceRunning;
 
     protected MainManager(LauncherActivity c) {
@@ -389,6 +392,43 @@ public class MainManager {
         return mainPack;
     }
 
+    public static void runShellCommand(final MainPack info, final String input, boolean echoCommand) {
+        if (input == null || input.trim().length() == 0) {
+            return;
+        }
+
+        final String command = input.trim();
+        final Shell.OnCommandResultListener result = new Shell.OnCommandResultListener() {
+            @Override
+            public void onCommandResult(int commandCode, int exitCode, List<String> output) {
+                if(commandCode == SHELL_CD_CODE) {
+                    interactive.addCommand("pwd", SHELL_PWD_CODE, this);
+                } else if(commandCode == SHELL_PWD_CODE && output.size() == 1) {
+                    File f = new File(output.get(0));
+                    if(f.exists()) {
+                        info.currentDirectory = f;
+                        LocalBroadcastManager.getInstance(info.context.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_UPDATE_HINT));
+                    }
+                }
+            }
+        };
+
+        if (echoCommand) {
+            Tuils.sendOutput(info.context, "shell: " + command, TerminalManager.CATEGORY_OUTPUT);
+        }
+
+        if(command.equalsIgnoreCase("su")) {
+            if(Shell.SU.available()) {
+                LocalBroadcastManager.getInstance(info.context.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_ROOT));
+            }
+            interactive.addCommand("su");
+        } else if(command.equalsIgnoreCase("cd") || command.toLowerCase().startsWith("cd ")) {
+            interactive.addCommand(command, SHELL_CD_CODE, result);
+        } else {
+            interactive.addCommand(command);
+        }
+    }
+
     public CommandExecuter executer() {
         return (input, obj) -> {
             AppsManager.LaunchInfo li = obj instanceof AppsManager.LaunchInfo ? (AppsManager.LaunchInfo) obj : null;
@@ -504,28 +544,20 @@ public class MainManager {
 
     private class ShellCommandTrigger implements CmdTrigger {
 
-        final int CD_CODE = 10;
-        final int PWD_CODE = 11;
-
-        final Shell.OnCommandResultListener result = new Shell.OnCommandResultListener() {
-            @Override
-            public void onCommandResult(int commandCode, int exitCode, List<String> output) {
-                if(commandCode == CD_CODE) {
-                    interactive.addCommand("pwd", PWD_CODE, result);
-                } else if(commandCode == PWD_CODE && output.size() == 1) {
-                    File f = new File(output.get(0));
-                    if(f.exists()) {
-                        mainPack.currentDirectory = f;
-
-                        LocalBroadcastManager.getInstance(mContext.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_UPDATE_HINT));
-                    }
-                }
-            }
-        };
-
         @Override
         public boolean trigger(final MainPack info, final String input) throws Exception {
             final String trimmed = input.trim();
+            List<String> parts = Tuils.splitArgs(trimmed);
+            if (!parts.isEmpty() && info.commandGroup.getCommandByName(parts.get(0)) != null) {
+                Tuils.sendOutput(mContext, "Command did not execute: " + parts.get(0), TerminalManager.CATEGORY_OUTPUT);
+                return true;
+            }
+
+            if (XMLPrefsManager.getBoolean(Behavior.shell_requires_prefix)) {
+                Tuils.sendOutput(mContext, mContext.getString(R.string.output_commandnotfound), TerminalManager.CATEGORY_OUTPUT);
+                return true;
+            }
+
             final String cmd = trimmed.split(" ")[0];
 
             if (!BusyBoxInstaller.isInstalled(mContext)) {
@@ -541,14 +573,7 @@ public class MainManager {
             new StoppableThread() {
                 @Override
                 public void run() {
-                    if(input.trim().equalsIgnoreCase("su")) {
-                        if(Shell.SU.available()) LocalBroadcastManager.getInstance(mContext.getApplicationContext()).sendBroadcast(new Intent(UIManager.ACTION_ROOT));
-                        interactive.addCommand("su");
-
-                    } else if(trimmed.equalsIgnoreCase("cd") || trimmed.toLowerCase().startsWith("cd ")) {
-                        interactive.addCommand(input, CD_CODE, result);
-                    } else interactive.addCommand(input);
-
+                    runShellCommand(info, trimmed, false);
                 }
             }.start();
 

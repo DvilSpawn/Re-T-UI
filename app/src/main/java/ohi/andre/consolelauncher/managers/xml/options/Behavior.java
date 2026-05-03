@@ -1429,6 +1429,22 @@ public enum Behavior implements XMLPrefsSave {
         public String type() {
             return XMLPrefsSave.INTEGER;
         }
+    },
+    shell_requires_prefix {
+        @Override
+        public String defaultValue() {
+            return "true";
+        }
+
+        @Override
+        public String info() {
+            return "If true, embedded shell commands must be run with shell [command] instead of falling through from unknown input";
+        }
+
+        @Override
+        public String type() {
+            return XMLPrefsSave.BOOLEAN;
+        }
     };
 
     @Override

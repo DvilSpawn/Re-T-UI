@@ -260,6 +260,14 @@ Create or update a script to output:
 - Confirm the path moves up one level.
 - Run `open <file>` or `share <file>` from a folder that contains a known file.
 - Confirm existing file commands still resolve paths relative to the new `cd` location.
+- Run `shell pwd`.
+- Confirm shell output prints the embedded shell path.
+- Run `shell cd ..`.
+- Confirm the input hint/path updates after the shell changes directory.
+- Type an unknown shell-like command without `shell`, such as `grep`.
+- Confirm Re:T-UI prints command-not-found/help guidance instead of silently running the embedded shell.
+- Run `config -set shell_requires_prefix false` only for compatibility testing.
+- Confirm unknown shell-like input can fall through only when that behavior setting is off.
 
 ## Phase 4 - Deliberate App Drawer
 

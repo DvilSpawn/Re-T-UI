@@ -548,6 +548,15 @@
     </string>
     <string name="help_pwd">Print Re:T-UI\'s current file path.</string>
     <string name="help_ctrlc">Interrupt the current shell process and create a new one</string>
+    <string name="help_shell">Run an explicit embedded shell command.
+        \nUsage:
+        \n$ shell [command]
+        \nExamples:
+        \n$ shell pwd
+        \n$ shell ls
+        \n$ shell cd ..
+        \n$ shell grep query file.txt
+    </string>
     <string name="help_open">Open a file
         \nUsage:
         \n$ open [pathToFile]
