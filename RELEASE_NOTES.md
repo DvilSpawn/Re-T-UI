@@ -1,4 +1,4 @@
-# Re:TUI 2 - Build 416
+# Re:TUI V.2 - Build 416
 
 Build 416 fixes preset exports that dropped decimal status-row positions such as `storage_index=2.1`.
 
