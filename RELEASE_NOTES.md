@@ -1,18 +1,15 @@
-# Re:TUI 2 — Build 415
+# Re:TUI 2 - Build 416
 
-Build 415 makes local presets complete and lets users decide exactly which behavior settings to include in a shareable configuration.
+Build 416 fixes preset exports that dropped decimal status-row positions such as `storage_index=2.1`.
 
 ## Changes
 
-- Added a review screen before shareable export showing every available `behavior.xml` value as an individual toggle.
-- Kept the existing safe behavior allowlist enabled by default; personal and executable values require explicit selection.
-- Recorded and validated the exact selected behavior fields so unselected values cannot enter through a modified archive.
-- Changed new local presets to copy the active `behavior.xml` exactly instead of applying the shareable sanitizer.
-- Restored selected behavior fields when importing and applying a shared preset.
+- Preserved decimal status pane indexes in saved presets, shareable configurations, imports, and preset application.
+- Kept normal integer validation unchanged for non-status settings.
 
 ## Validation
 
-- Play Store unit tests and lint passed.
-- Signed GitHub APK and Play Store AAB were built from the same tagged source.
+- Preset manager regression test passed.
+- Play Store unit tests, lint, APK assembly, and AAB bundle were run for this tagged source.
 
-Version 2, Play Store version code 415.
+Version 2, Play Store version code 416.
