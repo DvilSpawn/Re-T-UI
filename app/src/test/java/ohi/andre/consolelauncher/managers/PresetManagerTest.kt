@@ -160,6 +160,23 @@ class PresetManagerTest {
         assertFalse(xml.contains("battery_index"))
     }
 
+    @Test fun sanitizerKeepsTerminalPromptPrefixes() {
+        val ui = Files.createTempFile("preset-ui-input-prefix", ".xml").toFile()
+        ui.writeText(
+            """<UI>
+                    <input_prefix value="t-ui ~$" />
+                    <input_root_prefix value="retui #" />
+                    <notes_header value="not a prompt" />
+                </UI>""".trimIndent()
+        )
+
+        val xml = PresetManager.sanitizeShareableXml(ui, XMLPrefsManager.XMLPrefsRoot.UI)
+
+        assertTrue(xml.contains("<input_prefix value=\"t-ui ~$\""))
+        assertTrue(xml.contains("<input_root_prefix value=\"retui #\""))
+        assertFalse(xml.contains("notes_header"))
+    }
+
     @Test fun selectedBehaviorSanitizerKeepsOnlyExplicitKnownValues() {
         val behavior = Files.createTempFile("selected-behavior", ".xml").toFile()
         behavior.writeText(

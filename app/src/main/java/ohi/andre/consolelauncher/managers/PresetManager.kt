@@ -143,6 +143,7 @@ object PresetManager {
     private val THREE_NUMBERS = Regex("^-?[0-9]{1,5}(\\.[0-9]{1,3})?(,-?[0-9]{1,5}(\\.[0-9]{1,3})?){2}$")
     private val SUGGESTION_ORDER = Regex("^([0-9]{1,2}\\([0-9]{1,3}\\)){1,16}$")
     private val SAFE_PUNCTUATION = Regex("^[!#$%&()*+,./:;<=>?@\\[\\]^_{|}~-]{0,8}$")
+    private val SAFE_PROMPT_PREFIX = Regex("^[A-Za-z0-9 !#$%&()*+,./:;<=>?@\\[\\]^_{|}~-]{0,24}$")
 
     val presetsDir: File
         get() = File(Tuils.getFolder(), PRESETS_FOLDER)
@@ -678,7 +679,8 @@ object PresetManager {
             XMLPrefsSave.COLOR -> value.isEmpty() || COLOR_VALUE.matches(value)
             XMLPrefsSave.AUTO_COLOR -> value.equals("auto", true) || COLOR_VALUE.matches(value)
             XMLPrefsSave.TEXT -> when (setting) {
-                Ui.input_prefix, Ui.input_root_prefix,
+                Ui.input_prefix, Ui.input_root_prefix -> value == "%n" || SAFE_PROMPT_PREFIX.matches(value)
+
                 Behavior.time_format_separator, Behavior.battery_progress_bar_symbol,
                 Behavior.unlock_time_divider -> value == "%n" || SAFE_PUNCTUATION.matches(value)
 
