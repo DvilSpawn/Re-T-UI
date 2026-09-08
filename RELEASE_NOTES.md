@@ -1,15 +1,15 @@
-# Re:TUI V.2 - Build 416
+# Re:TUI V.2 - Build 417
 
-Build 416 fixes preset exports that dropped decimal status-row positions such as `storage_index=2.1`.
+Build 417 fixes preset exports that dropped custom terminal prompt prefixes such as `t-ui ~$`.
 
 ## Changes
 
-- Preserved decimal status pane indexes in saved presets, shareable configurations, imports, and preset application.
-- Kept normal integer validation unchanged for non-status settings.
+- Preserved short terminal-style `input_prefix` and `input_root_prefix` values in saved presets, shareable configurations, imports, and preset application.
+- Kept personal free-form UI text excluded from shareable preset data.
 
 ## Validation
 
 - Preset manager regression test passed.
 - Play Store unit tests, lint, APK assembly, and AAB bundle were run for this tagged source.
 
-Version 2, Play Store version code 416.
+Version 2, Play Store version code 417.
